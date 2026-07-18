@@ -1,0 +1,29 @@
+user:
+  service-name: user
+  servicer-to-run: http
+  http-addr: 127.0.0.1:18801
+  grpc-addr: 127.0.0.1:18701
+  server-to-run: http
+  mongo:
+    database: axis_user
+
+
+# redis
+redis:
+  host:
+    - localhost:6379
+  database: 1
+  password: my999pikaqiu@163.com
+  # more profile
+  cache: false
+
+# mongo basic config for read
+basic-mongo:
+  read:
+    host: 127.0.0.1
+    port: 27017
+    password: xxxxsadasda
+  write:
+    host: 127.0.0.1
+    port: 27017
+    password: xxxxsadasda

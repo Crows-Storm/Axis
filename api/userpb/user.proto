@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+option go_package = "github.com/Crows-Storm/Axis/common/genproto/userpb";
+
+service UserService {
+
+  rpc GetUserById(GetUserByIdRequest) returns (GetUserByIdResponse);
+  rpc GetUserByLoginId(GetUserByLoginIdRequest) returns (GetUserByLoginIdResponse);
+}
+
+// GetUserById
+message GetUserByIdRequest {
+  string id = 1;
+}
+message GetUserByIdResponse {
+  string id = 1;
+  // ...
+}
+
+// GetUserByLoginId
+message GetUserByLoginIdRequest {
+  string loginId = 1;
+}
+message GetUserByLoginIdResponse {
+  string id = 1;
+  // ...
+}

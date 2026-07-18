@@ -1,0 +1,203 @@
+openapi: 3.0.3
+info:
+  title: User Service API
+  description: All web APIs for User service
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:18081
+    description: Local development server
+
+# =============================================================================
+# Security Schemes
+# Defines the authentication methods available for this API.
+# The Bearer token scheme is used for JWT-based authentication.
+# =============================================================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Enter your JWT token in the format: Bearer <token>.
+        Example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+  # ===========================================================================
+  # Reusable Schemas
+  # These schemas define the data models used in requests and responses.
+  # They are referenced via $ref to keep the spec DRY (Don't Repeat Yourself).
+  # ===========================================================================
+  schemas:
+
+    # ---------------------------------------------------------------------------
+    # User information object
+    # Represents the core profile data of a user.
+    # ---------------------------------------------------------------------------
+    UserInfo:
+      type: object
+      description: Core profile information of the user
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the user
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        username:
+          type: string
+          description: Login username of the user
+          example: "johndoe"
+        nickname:
+          type: string
+          description: Display name of the user
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          description: Email address of the user
+          example: "johndoe@example.com"
+        phone:
+          type: string
+          description: Phone number of the user (may be partially masked)
+          example: "138****1234"
+        avatar:
+          type: string
+          format: uri
+          description: URL of the user's avatar image
+          example: "https://cdn.example.com/avatars/johndoe.png"
+        status:
+          type: integer
+          description: >
+            Account status code.
+            0 = disabled, 1 = active, 2 = locked
+          enum: [0, 1, 2]
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the user account was created
+          example: "2024-01-15T08:30:00Z"
+      required:
+        - id
+        - username
+        - status
+
+    # ---------------------------------------------------------------------------
+    # Standard API response wrapper
+    # A unified response structure used across all API endpoints.
+    # ---------------------------------------------------------------------------
+    UserInfoResponse:
+      type: object
+      description: Standard API response containing user info data
+      properties:
+        code:
+          type: integer
+          description: >
+            Business status code.
+            0 indicates success; non-zero values indicate specific errors.
+          example: 0
+        message:
+          type: string
+          description: Human-readable status message
+          example: "success"
+        data:
+          $ref: '#/components/schemas/UserInfo'
+      required:
+        - code
+        - message
+        - data
+
+    # ---------------------------------------------------------------------------
+    # Standard error response
+    # Returned when a request fails due to client or server errors.
+    # ---------------------------------------------------------------------------
+    ErrorResponse:
+      type: object
+      description: Error response with details about what went wrong
+      properties:
+        code:
+          type: integer
+          description: Business error code
+          example: 40101
+        message:
+          type: string
+          description: Human-readable error description
+          example: "Authentication token is missing or invalid"
+        data:
+          type: object
+          nullable: true
+          description: Always null for error responses
+          example: null
+      required:
+        - code
+        - message
+
+# =============================================================================
+# API Paths
+# Each path defines the available HTTP methods and their behavior.
+# =============================================================================
+paths:
+  /:
+    get:
+      summary: Get current user info
+      description: >
+        Retrieves the profile information of the currently authenticated user.
+        The user identity is determined from the JWT token provided in the
+        Authorization header. This endpoint does not accept any path or query
+        parameters.
+      operationId: getCurrentUserInfo
+      tags:
+        - User
+      # Require Bearer token authentication for this endpoint
+      security:
+        - BearerAuth: []
+      responses:
+        # ----- 200 OK: User info retrieved successfully -----
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfoResponse'
+              example:
+                code: 0
+                message: "success"
+                data:
+                  id: "550e8400-e29b-41d4-a716-446655440000"
+                  username: "johndoe"
+                  nickname: "John Doe"
+                  email: "johndoe@example.com"
+                  phone: "138****1234"
+                  avatar: "https://cdn.example.com/avatars/johndoe.png"
+                  status: 1
+                  created_at: "2024-01-15T08:30:00Z"
+
+        # ----- 401 Unauthorized: Missing or invalid token -----
+        '401':
+          description: >
+            Unauthorized. The request lacks valid authentication credentials.
+            This occurs when the Authorization header is missing, the JWT
+            token is expired, or the token signature is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 40101
+                message: "Authentication token is missing or invalid"
+                data: null
+
+        # ----- 500 Internal Server Error: Unexpected server failure -----
+        '500':
+          description: >
+            Internal server error. An unexpected condition was encountered
+            while processing the request. The client should retry after
+            a short delay or contact support if the issue persists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 50000
+                message: "Internal server error"
+                data: null

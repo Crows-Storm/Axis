@@ -1,3 +1,5 @@
+fallback-grpc-addr: 127.0.0.1:18700
+
 user:
   service-name: user
   servicer-to-run: http

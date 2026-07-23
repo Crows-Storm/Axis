@@ -6,6 +6,6 @@ func NewViperConfig() error {
 	viper.SetConfigName("global")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("../common/config/")
-	viper.AutomaticEnv()
+	//viper.AutomaticEnv()
 	return viper.ReadInConfig()
 }

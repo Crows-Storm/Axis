@@ -2,7 +2,7 @@ syntax = "proto3";
 
 option go_package = "github.com/Crows-Storm/Axis/common/genproto/userpb";
 
-service UserService {
+service WalletService {
 
   rpc GetWalletByUserId(GetWalletByUserIdRequest) returns (GetWalletByUserIdResponse);
   rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);

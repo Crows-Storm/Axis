@@ -282,8 +282,8 @@ const file_wallet_proto_rawDesc = "" +
 	"\x11GetBalanceRequest\x12\x1a\n" +
 	"\bcurrency\x18\x01 \x01(\tR\bcurrency\",\n" +
 	"\x12GetBalanceResponse\x12\x16\n" +
-	"\x06amount\x18\x01 \x01(\tR\x06amount2\x90\x01\n" +
-	"\vUserService\x12J\n" +
+	"\x06amount\x18\x01 \x01(\tR\x06amount2\x92\x01\n" +
+	"\rWalletService\x12J\n" +
 	"\x11GetWalletByUserId\x12\x19.GetWalletByUserIdRequest\x1a\x1a.GetWalletByUserIdResponse\x125\n" +
 	"\n" +
 	"GetBalance\x12\x12.GetBalanceRequest\x1a\x13.GetBalanceResponseB4Z2github.com/Crows-Storm/Axis/common/genproto/userpbb\x06proto3"
@@ -310,10 +310,10 @@ var file_wallet_proto_goTypes = []any{
 }
 var file_wallet_proto_depIdxs = []int32{
 	2, // 0: GetWalletByUserIdResponse.balance:type_name -> Balance
-	0, // 1: UserService.GetWalletByUserId:input_type -> GetWalletByUserIdRequest
-	3, // 2: UserService.GetBalance:input_type -> GetBalanceRequest
-	1, // 3: UserService.GetWalletByUserId:output_type -> GetWalletByUserIdResponse
-	4, // 4: UserService.GetBalance:output_type -> GetBalanceResponse
+	0, // 1: WalletService.GetWalletByUserId:input_type -> GetWalletByUserIdRequest
+	3, // 2: WalletService.GetBalance:input_type -> GetBalanceRequest
+	1, // 3: WalletService.GetWalletByUserId:output_type -> GetWalletByUserIdResponse
+	4, // 4: WalletService.GetBalance:output_type -> GetBalanceResponse
 	3, // [3:5] is the sub-list for method output_type
 	1, // [1:3] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

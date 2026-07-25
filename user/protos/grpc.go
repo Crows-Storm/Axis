@@ -25,8 +25,3 @@ func (G GRPCServer) GetUserByLoginId(ctx context.Context, request *userpb.GetUse
 	//TODO implement me
 	panic("implement me")
 }
-
-func (G GRPCServer) mustEmbedUnimplementedUserServiceServer() {
-	//TODO implement me
-	panic("implement me")
-}

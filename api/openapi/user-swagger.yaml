@@ -29,9 +29,58 @@ components:
   # They are referenced via $ref to keep the spec DRY (Don't Repeat Yourself).
   # ===========================================================================
   schemas:
+    # ---------------------------------------------------------------------------
+    # Base Response (without data field)
+    # Used as the foundation for all successful responses via allOf composition.
+    # ---------------------------------------------------------------------------
+    BaseResponse:
+      type: object
+      description: Standard API response base (without data)
+      properties:
+        code:
+          type: integer
+          description: >
+            Business status code.
+            0 indicates success; non-zero values indicate specific errors.
+          enum: [0, 400, 401, 403, 404, 500]
+          example: 0
+        message:
+          type: string
+          description: Human-readable status message
+          example: "success"
+      required:
+        - code
+        - message
 
     # ---------------------------------------------------------------------------
-    # User information object
+    # Error Response (for non-200 status codes)
+    # This is a specialized response that doesn't use the data field.
+    # ---------------------------------------------------------------------------
+    ErrorResponse:
+      type: object
+      description: Standard API error response
+      properties:
+        code:
+          type: integer
+          description: >
+            Business status code.
+            Non-zero values indicate specific errors.
+          enum: [400, 401, 403, 404, 500]
+          example: 40101
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Authentication token is missing or invalid"
+        # data field is optional and usually null in error responses
+        data:
+          nullable: true
+          description: Additional error details (usually null)
+      required:
+        - code
+        - message
+
+    # ---------------------------------------------------------------------------
+    # User Information Object
     # Represents the core profile data of a user.
     # ---------------------------------------------------------------------------
     UserInfo:
@@ -39,98 +88,54 @@ components:
       description: Core profile information of the user
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           description: Unique identifier of the user
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        username:
+          example: 113453443
+        loginId:
           type: string
           description: Login username of the user
           example: "johndoe"
-        nickname:
-          type: string
-          description: Display name of the user
-          example: "John Doe"
         email:
           type: string
           format: email
           description: Email address of the user
           example: "johndoe@example.com"
-        phone:
-          type: string
-          description: Phone number of the user (may be partially masked)
-          example: "138****1234"
-        avatar:
-          type: string
-          format: uri
-          description: URL of the user's avatar image
-          example: "https://cdn.example.com/avatars/johndoe.png"
         status:
           type: integer
           description: >
             Account status code.
-            0 = disabled, 1 = active, 2 = locked
-          enum: [0, 1, 2]
+            0 = disabled, 1 = active
+          enum: [0, 1]
           example: 1
-        created_at:
+        create_time:
           type: string
           format: date-time
           description: Timestamp when the user account was created
           example: "2024-01-15T08:30:00Z"
+        update_time:
+          type: string
+          format: date-time
+          description: Timestamp when the user account was updated
+          example: "2024-01-15T08:30:00Z"
       required:
         - id
-        - username
+        - loginId
         - status
 
     # ---------------------------------------------------------------------------
-    # Standard API response wrapper
-    # A unified response structure used across all API endpoints.
+    # UserInfo Response (with data field typed as UserInfo)
+    # Uses allOf to combine BaseResponse and a custom data field.
     # ---------------------------------------------------------------------------
     UserInfoResponse:
-      type: object
-      description: Standard API response containing user info data
-      properties:
-        code:
-          type: integer
-          description: >
-            Business status code.
-            0 indicates success; non-zero values indicate specific errors.
-          example: 0
-        message:
-          type: string
-          description: Human-readable status message
-          example: "success"
-        data:
-          $ref: '#/components/schemas/UserInfo'
-      required:
-        - code
-        - message
-        - data
-
-    # ---------------------------------------------------------------------------
-    # Standard error response
-    # Returned when a request fails due to client or server errors.
-    # ---------------------------------------------------------------------------
-    ErrorResponse:
-      type: object
-      description: Error response with details about what went wrong
-      properties:
-        code:
-          type: integer
-          description: Business error code
-          example: 40101
-        message:
-          type: string
-          description: Human-readable error description
-          example: "Authentication token is missing or invalid"
-        data:
-          type: object
-          nullable: true
-          description: Always null for error responses
-          example: null
-      required:
-        - code
-        - message
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/UserInfo'
+          required:
+            - data
 
 # =============================================================================
 # API Paths
@@ -163,14 +168,12 @@ paths:
                 code: 0
                 message: "success"
                 data:
-                  id: "550e8400-e29b-41d4-a716-446655440000"
-                  username: "johndoe"
-                  nickname: "John Doe"
+                  id: 113453443
+                  loginId: "johndoe"
                   email: "johndoe@example.com"
-                  phone: "138****1234"
-                  avatar: "https://cdn.example.com/avatars/johndoe.png"
                   status: 1
-                  created_at: "2024-01-15T08:30:00Z"
+                  create_time: "2024-01-15T08:30:00Z"
+                  update_time: "2024-01-15T08:30:00Z"
 
         # ----- 401 Unauthorized: Missing or invalid token -----
         '401':
@@ -183,9 +186,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
-                code: 40101
+                code: 401
                 message: "Authentication token is missing or invalid"
-                data: null
 
         # ----- 500 Internal Server Error: Unexpected server failure -----
         '500':
@@ -198,6 +200,75 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
-                code: 50000
+                code: 500
                 message: "Internal server error"
-                data: null
+  /{id}:
+    get:
+      summary: Get current user info
+      description: >
+        Retrieves the profile information of the currently authenticated user.
+        The user identity is determined from the JWT token provided in the
+        Authorization header. This endpoint does not accept any path or query
+        parameters.
+      operationId: getUserInfoById
+      tags:
+        - User
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the user
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            example: 113453443
+      # Require Bearer token authentication for this endpoint
+      security:
+        - BearerAuth: [ ]
+      responses:
+        # ----- 200 OK: User info retrieved successfully -----
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfoResponse'
+              example:
+                code: 0
+                message: "success"
+                data:
+                  id: 113453443
+                  loginId: "johndoe"
+                  email: "johndoe@example.com"
+                  status: 1
+                  create_time: "2024-01-15T08:30:00Z"
+                  update_time: "2024-01-15T08:30:00Z"
+
+        # ----- 401 Unauthorized: Missing or invalid token -----
+        '401':
+          description: >
+            Unauthorized. The request lacks valid authentication credentials.
+            This occurs when the Authorization header is missing, the JWT
+            token is expired, or the token signature is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+
+        # ----- 500 Internal Server Error: Unexpected server failure -----
+        '500':
+          description: >
+            Internal server error. An unexpected condition was encountered
+            while processing the request. The client should retry after
+            a short delay or contact support if the issue persists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"

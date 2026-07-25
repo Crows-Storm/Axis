@@ -1,20 +1,22 @@
 package server
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
-type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+type Response[D any] struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    D      `json:"data,omitempty"`
 }
 
-type PageData struct {
-	List     interface{} `json:"list"`
-	Total    int64       `json:"total"`
-	Page     int         `json:"page"`
-	PageSize int         `json:"page_size"`
+type PageData[D any] struct {
+	List     D     `json:"list"`
+	Total    int64 `json:"total"`
+	Page     int   `json:"page"`
+	PageSize int   `json:"page_size"`
 }
 
 const (
@@ -27,17 +29,17 @@ const (
 )
 
 // Success 成功响应
-func Success(c *gin.Context, data interface{}) {
-	c.JSON(200, Response{
+func Success[D any](c *gin.Context, data D) {
+	c.JSON(http.StatusOK, Response[D]{
 		Code:    CodeSuccess,
-		Message: "success",
+		Message: "Successfully",
 		Data:    data,
 	})
 }
 
 // SuccessWithMessage 成功响应（自定义消息）
-func SuccessWithMessage(c *gin.Context, message string, data interface{}) {
-	c.JSON(200, Response{
+func SuccessWithMessage[D any](c *gin.Context, message string, data D) {
+	c.JSON(http.StatusOK, Response[D]{
 		Code:    CodeSuccess,
 		Message: message,
 		Data:    data,
@@ -50,7 +52,7 @@ func Error(c *gin.Context, code int, message string) {
 	if code >= 400 && code < 600 {
 		httpStatus = code
 	}
-	c.JSON(httpStatus, Response{
+	c.JSON(httpStatus, Response[any]{
 		Code:    code,
 		Message: message,
 	})
@@ -58,18 +60,18 @@ func Error(c *gin.Context, code int, message string) {
 
 // ErrorWithStatus 错误响应（自定义 HTTP 状态码）
 func ErrorWithStatus(c *gin.Context, httpStatus int, code int, message string) {
-	c.JSON(httpStatus, Response{
+	c.JSON(httpStatus, Response[any]{
 		Code:    code,
 		Message: message,
 	})
 }
 
 // Page 分页响应
-func Page(c *gin.Context, list interface{}, total int64, page, pageSize int) {
-	c.JSON(200, Response{
+func Page[D any](c *gin.Context, list D, total int64, page, pageSize int) {
+	c.JSON(http.StatusOK, Response[PageData[D]]{
 		Code:    CodeSuccess,
 		Message: "success",
-		Data: PageData{
+		Data: PageData[D]{
 			List:     list,
 			Total:    total,
 			Page:     page,

@@ -54,9 +54,9 @@ temp/
 */tmp/
 
 # Generated code (uncomment if you want to ignore generated files)
-# *.gen.go
-# *.pb.go
-# *_grpc.pb.go
+ *.gen.go
+ *.pb.go
+ *_grpc.pb.go
 
 # Redis dump
 dump.rdb

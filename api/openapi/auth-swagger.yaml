@@ -1,0 +1,473 @@
+openapi: 3.0.3
+info:
+  title: Auth Service API
+  description: All web APIs for Auth service
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:18082
+    description: Local development server
+
+# =============================================================================
+# Security Schemes
+# Defines the authentication methods available for this API.
+# The Bearer token scheme is used for JWT-based authentication.
+# =============================================================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Enter your JWT token in the format: Bearer <token>.
+        Example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+  # ===========================================================================
+  # Reusable Schemas
+  # These schemas define the data models used in requests and responses.
+  # They are referenced via $ref to keep the spec DRY (Don't Repeat Yourself).
+  # ===========================================================================
+  schemas:
+    # ---------------------------------------------------------------------------
+    # Base Response (without data field)
+    # Used as the foundation for all successful responses via allOf composition.
+    # ---------------------------------------------------------------------------
+    BaseResponse:
+      type: object
+      description: Standard API response base (without data)
+      properties:
+        code:
+          type: integer
+          description: >
+            Business status code.
+            0 indicates success; non-zero values indicate specific errors.
+          enum: [0, 400, 401, 403, 404, 500]
+          example: 0
+        message:
+          type: string
+          description: Human-readable status message
+          example: "success"
+      required:
+        - code
+        - message
+
+    # ---------------------------------------------------------------------------
+    # Error Response (for non-200 status codes)
+    # This is a specialized response that doesn't use the data field.
+    # ---------------------------------------------------------------------------
+    ErrorResponse:
+      type: object
+      description: Standard API error response
+      properties:
+        code:
+          type: integer
+          description: >
+            Business status code.
+            Non-zero values indicate specific errors.
+          enum: [400, 401, 403, 404, 500]
+          example: 40101
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Authentication token is missing or invalid"
+        data:
+          nullable: true
+          description: Additional error details (usually null)
+      required:
+        - code
+        - message
+
+    # ---------------------------------------------------------------------------
+    # Auth Strategy Enum
+    # Defines the available authentication strategies.
+    # ---------------------------------------------------------------------------
+    AuthStrategy:
+      type: string
+      description: Authentication strategy used for login
+      enum:
+        - normal
+        - api
+        - third_party
+        - phone
+        - qrcode
+      example: "normal"
+
+    # ---------------------------------------------------------------------------
+    # Auth Information Object
+    # Represents the complete authentication profile of a user.
+    # ---------------------------------------------------------------------------
+    PrincipalInfo:
+      type: object
+      description: Complete authentication profile information of the user
+      properties:
+        userId:
+          type: integer
+          format: int64
+          description: Unique identifier of the user
+          example: 113453443
+        roleId:
+          type: integer
+          format: int64
+          description: Role identifier of the user
+          example: 2
+        loginId:
+          type: string
+          description: Login username of the user
+          example: "johndoe"
+        email:
+          type: string
+          format: email
+          description: Email address of the user
+          example: "johndoe@example.com"
+        token:
+          type: string
+          description: JWT token for authentication
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0..."
+        strategy:
+          $ref: '#/components/schemas/AuthStrategy'
+        port:
+          type: string
+          description: User portal type (admin/user/agent)
+          enum: ["admin", "user", "agent"]
+          example: "user"
+        status:
+          type: integer
+          description: >
+            Account status code.
+            0 = blocked/disabled, 1 = normal/active
+          enum: [0, 1]
+          example: 1
+        create_time:
+          type: string
+          format: date-time
+          description: Timestamp when the user account was created
+          example: "2024-01-15T08:30:00Z"
+        update_time:
+          type: string
+          format: date-time
+          description: Timestamp when the user account was updated
+          example: "2024-01-15T08:30:00Z"
+      required:
+        - userId
+        - loginId
+        - status
+        - token
+        - strategy
+
+    # ---------------------------------------------------------------------------
+    # Login Request
+    # Credentials required for user login.
+    # ---------------------------------------------------------------------------
+    LoginRequest:
+      type: object
+      description: Login credentials
+      properties:
+        loginId:
+          type: string
+          description: Username or login identifier
+          example: "johndoe"
+        password:
+          type: string
+          format: password
+          description: User password
+          example: "SecurePass123!"
+        strategy:
+          $ref: '#/components/schemas/AuthStrategy'
+          description: Authentication strategy to use
+      required:
+        - loginId
+        - password
+
+    # ---------------------------------------------------------------------------
+    # Logout Request
+    # Optional request body for logout.
+    # ---------------------------------------------------------------------------
+    LogoutRequest:
+      type: object
+      description: Logout request (optional)
+      properties:
+        token:
+          type: string
+          description: JWT token to invalidate (if not provided, current session token will be used)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      required: []
+
+    # ---------------------------------------------------------------------------
+    # PrincipalInfo Response (with data field typed as PrincipalInfo)
+    # Uses allOf to combine BaseResponse and a custom data field.
+    # ---------------------------------------------------------------------------
+    PrincipalInfoResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PrincipalInfo'
+          required:
+            - data
+
+    # ---------------------------------------------------------------------------
+    # Login Response
+    # Specialized response for login that includes PrincipalInfo.
+    # ---------------------------------------------------------------------------
+    LoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PrincipalInfo'
+          required:
+            - data
+
+    # ---------------------------------------------------------------------------
+    # Logout Response
+    # Response for logout operation.
+    # ---------------------------------------------------------------------------
+    LogoutResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  description: Whether logout was successful
+                  example: true
+                message:
+                  type: string
+                  description: Logout status message
+                  example: "Successfully logged out"
+
+# =============================================================================
+# API Paths
+# Each path defines the available HTTP methods and their behavior.
+# =============================================================================
+paths:
+  /:
+    get:
+      summary: Auth root
+      description: >
+        Authenticates a user with the provided credentials.
+        Returns user profile information and a JWT token for subsequent requests.
+      operationId: Auth root
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: Auth root successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrincipalInfoResponse'
+              examples:
+                success_response:
+                  summary: Successful login response
+                  value:
+                    code: 0
+                    message: "success"
+                    data:
+                      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTM0NTM0NDMiLCJyb2xlIjoiMiIsImV4cCI6MTcyMjQwMDAwMH0..."
+                      userId: 113453443
+                      roleId: 2
+                      loginId: "johndoe"
+                      email: "johndoe@example.com"
+                      strategy: "normal"
+                      port: "user"
+                      status: 1
+                      create_time: "2024-01-15T08:30:00Z"
+                      update_time: "2024-01-15T08:30:00Z"
+
+        # ----- 401 Unauthorized: Invalid credentials -----
+        '401':
+          description: >
+            Unauthorized. Invalid login credentials provided.
+            This occurs when the username/password combination is incorrect
+            or the account is blocked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Invalid username or password"
+
+        # ----- 403 Forbidden: Account blocked -----
+        '403':
+          description: >
+            Forbidden. The account is blocked or disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 403
+                message: "Account is blocked"
+
+        # ----- 500 Internal Server Error -----
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"
+  # -------------------------------------------------------------------------
+  # Login Endpoint
+  # Authenticates a user and returns auth information including JWT token.
+  # -------------------------------------------------------------------------
+  /login:
+    post:
+      summary: User login
+      description: >
+        Authenticates a user with the provided credentials.
+        Returns user profile information and a JWT token for subsequent requests.
+      operationId: login
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              normal_login:
+                summary: Normal login with username and password
+                value:
+                  loginId: "johndoe"
+                  password: "SecurePass123!"
+                  strategy: "normal"
+              phone_login:
+                summary: Phone number login
+                value:
+                  loginId: "+8613800138000"
+                  password: "123456"
+                  strategy: "phone"
+      responses:
+        # ----- 200 OK: Login successful -----
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              examples:
+                success_response:
+                  summary: Successful login response
+                  value:
+                    code: 0
+                    message: "success"
+                    data:
+                      userId: 113453443
+                      roleId: 2
+                      loginId: "johndoe"
+                      email: "johndoe@example.com"
+                      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTM0NTM0NDMiLCJyb2xlIjoiMiIsImV4cCI6MTcyMjQwMDAwMH0..."
+                      strategy: "normal"
+                      port: "user"
+                      status: 1
+                      create_time: "2024-01-15T08:30:00Z"
+                      update_time: "2024-01-15T08:30:00Z"
+
+        # ----- 401 Unauthorized: Invalid credentials -----
+        '401':
+          description: >
+            Unauthorized. Invalid login credentials provided.
+            This occurs when the username/password combination is incorrect
+            or the account is blocked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Invalid username or password"
+
+        # ----- 403 Forbidden: Account blocked -----
+        '403':
+          description: >
+            Forbidden. The account is blocked or disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 403
+                message: "Account is blocked"
+
+        # ----- 500 Internal Server Error -----
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"
+
+  # -------------------------------------------------------------------------
+  # Logout Endpoint
+  # Invalidates the current session/token.
+  # -------------------------------------------------------------------------
+  /logout:
+    post:
+      summary: User logout
+      description: >
+        Invalidates the current JWT token or the token provided in the request body.
+        After logout, the token cannot be used for subsequent requests.
+      operationId: logout
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+            example:
+              token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        # ----- 200 OK: Logout successful -----
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutResponse'
+              example:
+                code: 0
+                message: "success"
+                data:
+                  success: true
+                  message: "Successfully logged out"
+
+        # ----- 401 Unauthorized: Missing or invalid token -----
+        '401':
+          description: Unauthorized. No valid authentication token provided.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+
+        # ----- 500 Internal Server Error -----
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"

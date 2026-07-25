@@ -1,8 +1,7 @@
 package main
 
 import (
-	"net/http"
-
+	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/user/app"
 	"github.com/Crows-Storm/Axis/user/app/query"
 	"github.com/gin-gonic/gin"
@@ -13,12 +12,24 @@ type HTTPServer struct {
 }
 
 func (H HTTPServer) GetCurrentUserInfo(c *gin.Context) {
+	// TODO: the JWT implementation should include retrieving the ID from the current user context
 	result, err := H.app.Queries.GetUser.Handle(c, query.GetUserQuery{
 		Id: 123,
 	})
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"message": "Failed", "error": err})
+		server.Error(c, server.CodeServerError, "Failed")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Success", "data": result})
+	server.Success(c, result)
+}
+
+func (H HTTPServer) GetUserInfoById(c *gin.Context, id int64) {
+	result, err := H.app.Queries.GetUser.Handle(c, query.GetUserQuery{
+		Id: id,
+	})
+	if err != nil {
+		server.Error(c, server.CodeServerError, "Failed")
+		return
+	}
+	server.Success(c, result)
 }

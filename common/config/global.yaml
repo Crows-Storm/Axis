@@ -8,6 +8,12 @@ user:
   server-to-run: http
   mongo:
     database: axis_user
+auth:
+  service-name: auth
+  servicer-to-run: http
+  http-addr: 127.0.0.1:18802
+  grpc-addr: 127.0.0.1:18702
+  server-to-run: http
 
 
 # redis

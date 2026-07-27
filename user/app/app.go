@@ -1,6 +1,9 @@
 package app
 
-import "github.com/Crows-Storm/Axis/user/app/query"
+import (
+	"github.com/Crows-Storm/Axis/user/app/command"
+	"github.com/Crows-Storm/Axis/user/app/query"
+)
 
 type Application struct {
 	Commands Commands
@@ -8,8 +11,8 @@ type Application struct {
 }
 
 type Commands struct {
-	//CreateUser command.CreateUserHandler
-	//UpdateUser command.UpdateUserHandler
+	CreateUser command.CreateUserCommandHandler
+	UpdateUser command.UpdateUserCommandHandler
 }
 
 type Queries struct {

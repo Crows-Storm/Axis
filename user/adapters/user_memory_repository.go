@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Crows-Storm/Axis/common/util"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
+	"github.com/bytedance/gopkg/util/logger"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,10 +35,13 @@ func NewMemoryUserRepository() *MemoryUserRepository {
 	}
 }
 
-func (m MemoryUserRepository) GetInfo(id int64) (*domain.User, error) {
+func (m *MemoryUserRepository) GetInfo(id int64) (*domain.User, error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
+	for _, user := range m.store {
+		logger.Infof("👀 user memory repository all store data: %v", user)
+	}
 	if len(m.store) == 0 {
 		return nil, domain.NotFoundError{UserId: id}
 	}
@@ -52,17 +55,17 @@ func (m MemoryUserRepository) GetInfo(id int64) (*domain.User, error) {
 	return nil, domain.NotFoundError{UserId: id}
 }
 
-func (m MemoryUserRepository) Create(_ context.Context, user *domain.User) (*domain.User, error) {
+func (m *MemoryUserRepository) Create(_ context.Context, user *domain.User) (*domain.User, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	newUser := &domain.User{
-		Id:         util.GenerateID(),
+		Id:         user.Id,
 		LoginId:    user.LoginId,
 		Password:   user.Password,
 		Email:      user.Email,
-		Status:     user.Status,
-		Deleted:    user.Deleted,
+		Status:     1, // use db default
+		Deleted:    0, // use db default
 		CreateTime: time.Now(),
 		UpdateTime: time.Now(),
 	}
@@ -76,7 +79,7 @@ func (m MemoryUserRepository) Create(_ context.Context, user *domain.User) (*dom
 	return newUser, nil
 }
 
-func (m MemoryUserRepository) Update(ctx context.Context, user *domain.User, updateFun func(context.Context, *domain.User) (*domain.User, error)) error {
+func (m *MemoryUserRepository) Update(ctx context.Context, user *domain.User, updateFun func(context.Context, *domain.User) (*domain.User, error)) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 

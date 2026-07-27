@@ -51,7 +51,6 @@ func main() {
 			Middlewares:  nil,
 			ErrorHandler: nil,
 		})
+		log.Println("Start Successfully" + serviceName)
 	})
-
-	log.Println("Start Successfully" + serviceName)
 }

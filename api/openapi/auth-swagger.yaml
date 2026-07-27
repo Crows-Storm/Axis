@@ -155,6 +155,28 @@ components:
         - token
         - strategy
 
+    RegisterRequest:
+      type: object
+      description: Register credentials
+      properties:
+        loginId:
+          type: string
+          description: Username or login identifier
+          example: "johndoe"
+        password:
+          type: string
+          format: password
+          description: User password
+          example: "SecurePass123!"
+        email:
+          type: string
+          description: email for user
+          example: "xxx@hotmail.com"
+      required:
+        - loginId
+        - password
+        - email
+
     # ---------------------------------------------------------------------------
     # Login Request
     # Credentials required for user login.
@@ -193,6 +215,15 @@ components:
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
       required: []
 
+    RegisterResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: string
+          required:
+            - data
     # ---------------------------------------------------------------------------
     # PrincipalInfo Response (with data field typed as PrincipalInfo)
     # Uses allOf to combine BaseResponse and a custom data field.
@@ -317,6 +348,30 @@ paths:
               example:
                 code: 500
                 message: "Internal server error"
+  /register:
+    post:
+      summary: Register user
+      description: >
+        Authenticates a user with the provided credentials.
+        Returns user profile information and a JWT token for subsequent requests.
+      operationId: register
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        # ----- 200 OK: register successful -----
+        '200':
+          description: register successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+
   # -------------------------------------------------------------------------
   # Login Endpoint
   # Authenticates a user and returns auth information including JWT token.

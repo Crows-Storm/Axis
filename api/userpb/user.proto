@@ -1,11 +1,19 @@
 syntax = "proto3";
 
 option go_package = "github.com/Crows-Storm/Axis/common/genproto/userpb";
+import "google/protobuf/empty.proto";
 
 service UserService {
+  rpc CreateUser(CreateUserRequest) returns (google.protobuf.Empty);
 
   rpc GetUserById(GetUserByIdRequest) returns (GetUserByIdResponse);
   rpc GetUserByLoginId(GetUserByLoginIdRequest) returns (GetUserByLoginIdResponse);
+}
+
+message CreateUserRequest {
+  string loginId = 1;
+  string password = 2;
+  string email = 3;
 }
 
 // GetUserById
@@ -16,7 +24,7 @@ message GetUserByIdResponse {
   int64 id = 1;
   string loginId = 2;
   string email = 3;
-  int32 status = 4;
+  int64 status = 4;
 }
 
 // GetUserByLoginId

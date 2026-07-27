@@ -122,6 +122,28 @@ components:
         - id
         - loginId
         - status
+    UpdateUserInfoRequest:
+      type: object
+      description: Core profile information of the user
+      properties:
+        loginId:
+          type: string
+          description: Login username of the user
+          example: "johndoe"
+        password:
+          type: string
+          format: password
+          description: password of the user
+          example: "123456"
+        email:
+          type: string
+          format: email
+          description: Email address of the user
+          example: "johndoe@example.com"
+      required:
+        - loginId
+        - password
+        - email
 
     # ---------------------------------------------------------------------------
     # UserInfo Response (with data field typed as UserInfo)
@@ -134,6 +156,15 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/UserInfo'
+          required:
+            - data
+    UpdateUserInfoResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: string
           required:
             - data
 
@@ -202,6 +233,30 @@ paths:
               example:
                 code: 500
                 message: "Internal server error"
+    put:
+      summary: Update current user info
+      description: >
+        Modify the current user's information
+      operationId: UpdateCurrentUserInfo
+      tags:
+        - User
+      # Require Bearer token authentication for this endpoint
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserInfoRequest'
+      responses:
+        '200':
+          description: Modify the current user's information successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateUserInfoResponse'
+
   /{id}:
     get:
       summary: Get current user info

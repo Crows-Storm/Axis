@@ -1,4 +1,4 @@
-package domain
+package principal
 
 type Principal struct {
 }

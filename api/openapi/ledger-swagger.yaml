@@ -1,0 +1,652 @@
+openapi: 3.0.3
+info:
+  title: Ledger Service API
+  description: All web APIs for Ledger service - manages wallet transaction records and history
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:18084
+    description: Local development server
+
+# =============================================================================
+# Security Schemes
+# Defines the authentication methods available for this API.
+# The Bearer token scheme is used for JWT-based authentication.
+# =============================================================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Enter your JWT token in the format: Bearer <token>.
+        Example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+  # ===========================================================================
+  # Reusable Schemas
+  # These schemas define the data models used in requests and responses.
+  # They are referenced via $ref to keep the spec DRY (Don't Repeat Yourself).
+  # ===========================================================================
+  schemas:
+    # ---------------------------------------------------------------------------
+    # Base Response (without data field)
+    # Used as the foundation for all successful responses via allOf composition.
+    # ---------------------------------------------------------------------------
+    BaseResponse:
+      type: object
+      description: Standard API response base (without data)
+      properties:
+        code:
+          type: integer
+          description: >
+            Business status code.
+            0 indicates success; non-zero values indicate specific errors.
+          enum: [0, 400, 401, 403, 404, 500]
+          example: 0
+        message:
+          type: string
+          description: Human-readable status message
+          example: "success"
+      required:
+        - code
+        - message
+
+    # ---------------------------------------------------------------------------
+    # Error Response (for non-200 status codes)
+    # This is a specialized response that doesn't use the data field.
+    # ---------------------------------------------------------------------------
+    ErrorResponse:
+      type: object
+      description: Standard API error response
+      properties:
+        code:
+          type: integer
+          description: >
+            Business status code.
+            Non-zero values indicate specific errors.
+          enum: [400, 401, 403, 404, 500]
+          example: 40101
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Authentication token is missing or invalid"
+        data:
+          nullable: true
+          description: Additional error details (usually null)
+      required:
+        - code
+        - message
+
+    # ---------------------------------------------------------------------------
+    # Transaction Type Enum
+    # Defines the type of transaction.
+    # ---------------------------------------------------------------------------
+    TransactionType:
+      type: string
+      description: Type of transaction
+      enum:
+        - deposit
+        - withdrawal
+        - transfer_in
+        - transfer_out
+        - payment
+        - refund
+        - fee
+        - reward
+        - bonus
+        - adjustment
+      example: "deposit"
+
+    # ---------------------------------------------------------------------------
+    # Transaction Status Enum
+    # Defines the status of a transaction.
+    # ---------------------------------------------------------------------------
+    TransactionStatus:
+      type: string
+      description: Status of the transaction
+      enum:
+        - pending
+        - processing
+        - completed
+        - failed
+        - cancelled
+        - reversed
+      example: "completed"
+
+    # ---------------------------------------------------------------------------
+    # Transaction Direction Enum
+    # Defines whether the transaction is credit or debit.
+    # ---------------------------------------------------------------------------
+    TransactionDirection:
+      type: string
+      description: Direction of the transaction relative to the wallet
+      enum:
+        - credit
+        - debit
+      example: "credit"
+
+    # ---------------------------------------------------------------------------
+    # Ledger Entry Object
+    # Represents a single transaction record in the ledger.
+    # ---------------------------------------------------------------------------
+    LedgerEntry:
+      type: object
+      description: Single ledger transaction record
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique ledger entry identifier
+          example: 50001
+        walletId:
+          type: integer
+          format: int64
+          description: Wallet identifier this entry belongs to
+          example: 10001
+        transactionId:
+          type: string
+          description: External transaction reference ID
+          example: "TX-20240115-ABC123"
+        transactionType:
+          $ref: '#/components/schemas/TransactionType'
+        direction:
+          $ref: '#/components/schemas/TransactionDirection'
+        amount:
+          type: number
+          format: double
+          description: Transaction amount
+          example: 100.50
+        balanceBefore:
+          type: number
+          format: double
+          description: Wallet balance before this transaction
+          example: 1500.00
+        balanceAfter:
+          type: number
+          format: double
+          description: Wallet balance after this transaction
+          example: 1600.50
+        currency:
+          type: string
+          description: Currency code
+          example: "USD"
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        description:
+          type: string
+          description: Transaction description or memo
+          example: "Deposit from bank account"
+        metadata:
+          type: object
+          description: Additional metadata for the transaction
+          properties:
+            source:
+              type: string
+              description: Source of the transaction
+              example: "bank_transfer"
+            destination:
+              type: string
+              description: Destination of the transaction
+              example: "wallet_10001"
+            reference:
+              type: string
+              description: Reference number from external system
+              example: "REF-20240115-001"
+        createTime:
+          type: string
+          format: date-time
+          description: Timestamp when the transaction was created
+          example: "2024-01-15T08:30:00Z"
+        updateTime:
+          type: string
+          format: date-time
+          description: Timestamp when the transaction was last updated
+          example: "2024-01-15T08:30:00Z"
+        completedTime:
+          type: string
+          format: date-time
+          description: Timestamp when the transaction was completed
+          example: "2024-01-15T08:35:00Z"
+          nullable: true
+      required:
+        - id
+        - walletId
+        - transactionType
+        - direction
+        - amount
+        - balanceBefore
+        - balanceAfter
+        - currency
+        - status
+
+    # ---------------------------------------------------------------------------
+    # Ledger List Response
+    # Response containing a list of ledger entries with pagination info.
+    # ---------------------------------------------------------------------------
+    LedgerListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  description: List of ledger entries
+                  items:
+                    $ref: '#/components/schemas/LedgerEntry'
+                  minItems: 0
+                pagination:
+                  type: object
+                  description: Pagination information
+                  properties:
+                    total:
+                      type: integer
+                      description: Total number of entries matching the query
+                      example: 150
+                    limit:
+                      type: integer
+                      description: Number of entries per page
+                      example: 20
+                    offset:
+                      type: integer
+                      description: Number of entries skipped
+                      example: 0
+                    hasMore:
+                      type: boolean
+                      description: Whether there are more entries available
+                      example: true
+              required:
+                - items
+                - pagination
+
+    # ---------------------------------------------------------------------------
+    # Ledger Summary Response
+    # Optional summary statistics for the wallet's ledger.
+    # ---------------------------------------------------------------------------
+    LedgerSummary:
+      type: object
+      description: Summary statistics for wallet transactions
+      properties:
+        totalCredit:
+          type: number
+          format: double
+          description: Total credit amount
+          example: 5000.00
+        totalDebit:
+          type: number
+          format: double
+          description: Total debit amount
+          example: 3500.00
+        transactionCount:
+          type: integer
+          description: Total number of transactions
+          example: 150
+        lastTransactionTime:
+          type: string
+          format: date-time
+          description: Timestamp of the most recent transaction
+          example: "2024-01-15T08:30:00Z"
+          nullable: true
+
+# =============================================================================
+# API Paths
+# Each path defines the available HTTP methods and their behavior.
+# =============================================================================
+paths:
+  # -------------------------------------------------------------------------
+  # Get Ledger by Wallet ID
+  # Retrieves all ledger entries for a specific wallet with filtering and pagination.
+  # -------------------------------------------------------------------------
+  /wallet/{id}:
+    get:
+      summary: Get ledger entries by wallet ID
+      description: >
+        Retrieves all ledger entries (transaction history) for a specific wallet.
+        Supports filtering by transaction type, status, date range, and direction.
+        Results are paginated to improve performance.
+        The user must be authenticated and have permission to access this wallet.
+      operationId: getLedgerByWalletId
+      tags:
+        - Ledger
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the wallet
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            example: 10001
+
+        - name: transactionType
+          in: query
+          required: false
+          description: Filter by transaction type
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+
+        - name: status
+          in: query
+          required: false
+          description: Filter by transaction status
+          schema:
+            $ref: '#/components/schemas/TransactionStatus'
+
+        - name: direction
+          in: query
+          required: false
+          description: Filter by transaction direction (credit/debit)
+          schema:
+            $ref: '#/components/schemas/TransactionDirection'
+
+        - name: startTime
+          in: query
+          required: false
+          description: Filter transactions from this time (inclusive)
+          schema:
+            type: string
+            format: date-time
+            example: "2024-01-01T00:00:00Z"
+
+        - name: endTime
+          in: query
+          required: false
+          description: Filter transactions until this time (inclusive)
+          schema:
+            type: string
+            format: date-time
+            example: "2024-01-31T23:59:59Z"
+
+        - name: minAmount
+          in: query
+          required: false
+          description: Filter transactions with amount >= this value
+          schema:
+            type: number
+            format: double
+            minimum: 0
+            example: 10.00
+
+        - name: maxAmount
+          in: query
+          required: false
+          description: Filter transactions with amount <= this value
+          schema:
+            type: number
+            format: double
+            minimum: 0
+            example: 1000.00
+
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of entries to return (pagination)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+
+        - name: offset
+          in: query
+          required: false
+          description: Number of entries to skip (pagination)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            example: 0
+
+        - name: sortBy
+          in: query
+          required: false
+          description: Sort field
+          schema:
+            type: string
+            enum:
+              - createTime
+              - amount
+              - updateTime
+            default: "createTime"
+
+        - name: sortOrder
+          in: query
+          required: false
+          description: Sort order
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: "desc"
+
+        - name: includeSummary
+          in: query
+          required: false
+          description: Include summary statistics in response
+          schema:
+            type: boolean
+            default: false
+
+      security:
+        - BearerAuth: []
+      responses:
+        # ----- 200 OK: Ledger entries retrieved successfully -----
+        '200':
+          description: Ledger entries retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerListResponse'
+              examples:
+                full_history:
+                  summary: Full transaction history with pagination
+                  value:
+                    code: 0
+                    message: "success"
+                    data:
+                      items:
+                        - id: 50001
+                          walletId: 10001
+                          transactionId: "TX-20240115-ABC123"
+                          transactionType: "deposit"
+                          direction: "credit"
+                          amount: 1000.00
+                          balanceBefore: 500.00
+                          balanceAfter: 1500.00
+                          currency: "USD"
+                          status: "completed"
+                          description: "Deposit from bank account"
+                          metadata:
+                            source: "bank_transfer"
+                            reference: "REF-20240115-001"
+                          createTime: "2024-01-15T08:30:00Z"
+                          updateTime: "2024-01-15T08:30:00Z"
+                          completedTime: "2024-01-15T08:35:00Z"
+                        - id: 50002
+                          walletId: 10001
+                          transactionId: "TX-20240115-DEF456"
+                          transactionType: "payment"
+                          direction: "debit"
+                          amount: 150.00
+                          balanceBefore: 1500.00
+                          balanceAfter: 1350.00
+                          currency: "USD"
+                          status: "completed"
+                          description: "Payment for order #ORD-12345"
+                          metadata:
+                            destination: "merchant_001"
+                            orderId: "ORD-12345"
+                          createTime: "2024-01-15T09:00:00Z"
+                          updateTime: "2024-01-15T09:00:00Z"
+                          completedTime: "2024-01-15T09:00:00Z"
+                        - id: 50003
+                          walletId: 10001
+                          transactionId: "TX-20240115-GHI789"
+                          transactionType: "transfer_in"
+                          direction: "credit"
+                          amount: 250.00
+                          balanceBefore: 1350.00
+                          balanceAfter: 1600.00
+                          currency: "USD"
+                          status: "completed"
+                          description: "Transfer from user #113453443"
+                          metadata:
+                            source: "user_113453443"
+                            sourceWallet: "wallet_10002"
+                          createTime: "2024-01-15T10:00:00Z"
+                          updateTime: "2024-01-15T10:00:00Z"
+                          completedTime: "2024-01-15T10:00:00Z"
+                      pagination:
+                        total: 150
+                        limit: 20
+                        offset: 0
+                        hasMore: true
+
+                filtered_by_type:
+                  summary: Filtered by transaction type (deposits only)
+                  value:
+                    code: 0
+                    message: "success"
+                    data:
+                      items:
+                        - id: 50001
+                          walletId: 10001
+                          transactionId: "TX-20240115-ABC123"
+                          transactionType: "deposit"
+                          direction: "credit"
+                          amount: 1000.00
+                          balanceBefore: 500.00
+                          balanceAfter: 1500.00
+                          currency: "USD"
+                          status: "completed"
+                          description: "Deposit from bank account"
+                          metadata:
+                            source: "bank_transfer"
+                            reference: "REF-20240115-001"
+                          createTime: "2024-01-15T08:30:00Z"
+                          updateTime: "2024-01-15T08:30:00Z"
+                          completedTime: "2024-01-15T08:35:00Z"
+                        - id: 50004
+                          walletId: 10001
+                          transactionId: "TX-20240114-JKL012"
+                          transactionType: "deposit"
+                          direction: "credit"
+                          amount: 500.00
+                          balanceBefore: 0.00
+                          balanceAfter: 500.00
+                          currency: "USD"
+                          status: "completed"
+                          description: "Initial deposit"
+                          metadata:
+                            source: "wire_transfer"
+                            reference: "REF-20240114-001"
+                          createTime: "2024-01-14T08:30:00Z"
+                          updateTime: "2024-01-14T08:30:00Z"
+                          completedTime: "2024-01-14T08:35:00Z"
+                      pagination:
+                        total: 25
+                        limit: 20
+                        offset: 0
+                        hasMore: true
+
+                with_summary:
+                  summary: Ledger history with summary statistics
+                  value:
+                    code: 0
+                    message: "success"
+                    data:
+                      items:
+                        - id: 50001
+                          walletId: 10001
+                          transactionId: "TX-20240115-ABC123"
+                          transactionType: "deposit"
+                          direction: "credit"
+                          amount: 1000.00
+                          balanceBefore: 500.00
+                          balanceAfter: 1500.00
+                          currency: "USD"
+                          status: "completed"
+                          description: "Deposit from bank account"
+                          metadata:
+                            source: "bank_transfer"
+                          createTime: "2024-01-15T08:30:00Z"
+                          updateTime: "2024-01-15T08:30:00Z"
+                          completedTime: "2024-01-15T08:35:00Z"
+                      pagination:
+                        total: 1
+                        limit: 20
+                        offset: 0
+                        hasMore: false
+                      summary:
+                        totalCredit: 1000.00
+                        totalDebit: 0.00
+                        transactionCount: 1
+                        lastTransactionTime: "2024-01-15T08:30:00Z"
+
+                empty_ledger:
+                  summary: Wallet with no transactions
+                  value:
+                    code: 0
+                    message: "success"
+                    data:
+                      items: []
+                      pagination:
+                        total: 0
+                        limit: 20
+                        offset: 0
+                        hasMore: false
+
+        # ----- 401 Unauthorized: Missing or invalid token -----
+        '401':
+          description: >
+            Unauthorized. The request lacks valid authentication credentials.
+            This occurs when the Authorization header is missing, the JWT
+            token is expired, or the token signature is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+
+        # ----- 403 Forbidden: Insufficient permissions -----
+        '403':
+          description: >
+            Forbidden. The authenticated user does not have permission to
+            view this wallet's ledger.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 403
+                message: "You do not have permission to view this wallet's ledger"
+
+        # ----- 404 Not Found: Wallet does not exist -----
+        '404':
+          description: Wallet not found with the given ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 404
+                message: "Wallet not found"
+
+        # ----- 500 Internal Server Error -----
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"

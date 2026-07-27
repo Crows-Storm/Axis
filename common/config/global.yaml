@@ -14,6 +14,22 @@ auth:
   http-addr: 127.0.0.1:18802
   grpc-addr: 127.0.0.1:18702
   server-to-run: http
+wallet:
+  service-name: wallet
+  servicer-to-run: http
+  http-addr: 127.0.0.1:18803
+  grpc-addr: 127.0.0.1:18703
+  server-to-run: http
+  mongo:
+    database: axis_wallet
+ledger:
+  service-name: ledger
+  servicer-to-run: http
+  http-addr: 127.0.0.1:18804
+  grpc-addr: 127.0.0.1:18704
+  server-to-run: http
+  mongo:
+    database: axis_ledger
 
 
 # redis

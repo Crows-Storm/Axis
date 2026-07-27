@@ -3,12 +3,26 @@ package main
 import (
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/user/app"
+	"github.com/Crows-Storm/Axis/user/app/command"
 	"github.com/Crows-Storm/Axis/user/app/query"
 	"github.com/gin-gonic/gin"
 )
 
 type HTTPServer struct {
 	app app.Application
+}
+
+func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
+	_, err := H.app.Commands.UpdateUser.Handle(c, command.UpdateUserCommand{
+		User:      nil, // from db by request context get user id to query a user domain
+		UpdateFun: nil,
+	})
+	if err != nil {
+		server.Error(c, server.CodeServerError, "Failed")
+		return
+	}
+	server.Success(c, true)
+	return
 }
 
 func (H HTTPServer) GetCurrentUserInfo(c *gin.Context) {

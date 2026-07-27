@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Crows-Storm/Axis/auth/domain"
+	domain "github.com/Crows-Storm/Axis/auth/domain/principal"
 )
 
 type MemoryAuthRepository struct {

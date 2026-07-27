@@ -4,11 +4,11 @@ import (
 	"context"
 	"log"
 
-	"github.com/Crows-Storm/Axis/auth/protos"
-	"github.com/Crows-Storm/Axis/auth/service"
 	"github.com/Crows-Storm/Axis/common/config"
-	"github.com/Crows-Storm/Axis/common/genproto/authpb"
+	"github.com/Crows-Storm/Axis/common/genproto/ledgerpb"
 	"github.com/Crows-Storm/Axis/common/server"
+	"github.com/Crows-Storm/Axis/ledger/protos"
+	"github.com/Crows-Storm/Axis/ledger/service"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -21,34 +21,33 @@ func init() {
 }
 
 func main() {
-	// init Redis
+
 	if err := config.NewRedisConnect(); err != nil {
-		log.Fatalf("[auth main] ❌ Redis init failed: %v", err)
+		log.Fatalf("[ledger main] ❌ Redis init failed: %v", err)
 	}
 	defer config.CloseRedis()
 
-	serviceName := viper.GetString("auth.service-name")
+	serviceName := viper.GetString("wallet.service-name")
 
 	ctx, cancel := context.WithCancel(context.Background())
+	application := service.NewApplication(ctx)
+
 	defer cancel()
 
-	application, cleanup := service.NewApplication(ctx)
-	defer cleanup()
-
-	// RunGRPCServer
+	// Run GRPCServer
 	go server.RunGRPCServer(serviceName, func(server *grpc.Server) {
-		authServiceServer := protos.NewGRPCServer(application)
-		authpb.RegisterAuthServiceServer(server, authServiceServer)
+		ledgerServiceServer := protos.NewGRPCServer(application)
+		ledgerpb.RegisterLedgerServiceServer(server, ledgerServiceServer)
 	})
 
 	server.RunHTTPServer(serviceName, func(router *gin.Engine) {
-		protos.RegisterHandlersWithOptions(router, HttpServer{
+		protos.RegisterHandlersWithOptions(router, HTTPServer{
 			app: application,
 		}, protos.GinServerOptions{
 			BaseURL:      "/api",
 			Middlewares:  nil,
 			ErrorHandler: nil,
 		})
+		log.Println("Start Successfully" + serviceName)
 	})
-
 }

@@ -1,0 +1,527 @@
+openapi: 3.0.3
+info:
+  title: Wallet Service API
+  description: All web APIs for Wallet service - manages user wallets and balances
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:18083
+    description: Local development server
+
+# =============================================================================
+# Security Schemes
+# Defines the authentication methods available for this API.
+# The Bearer token scheme is used for JWT-based authentication.
+# =============================================================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Enter your JWT token in the format: Bearer <token>.
+        Example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+  # ===========================================================================
+  # Reusable Schemas
+  # These schemas define the data models used in requests and responses.
+  # They are referenced via $ref to keep the spec DRY (Don't Repeat Yourself).
+  # ===========================================================================
+  schemas:
+    # ---------------------------------------------------------------------------
+    # Base Response (without data field)
+    # Used as the foundation for all successful responses via allOf composition.
+    # ---------------------------------------------------------------------------
+    BaseResponse:
+      type: object
+      description: Standard API response base (without data)
+      properties:
+        code:
+          type: integer
+          description: >
+            Business status code.
+            0 indicates success; non-zero values indicate specific errors.
+          enum: [0, 400, 401, 403, 404, 500]
+          example: 0
+        message:
+          type: string
+          description: Human-readable status message
+          example: "success"
+      required:
+        - code
+        - message
+
+    # ---------------------------------------------------------------------------
+    # Error Response (for non-200 status codes)
+    # This is a specialized response that doesn't use the data field.
+    # ---------------------------------------------------------------------------
+    ErrorResponse:
+      type: object
+      description: Standard API error response
+      properties:
+        code:
+          type: integer
+          description: >
+            Business status code.
+            Non-zero values indicate specific errors.
+          enum: [400, 401, 403, 404, 500]
+          example: 40101
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Authentication token is missing or invalid"
+        data:
+          nullable: true
+          description: Additional error details (usually null)
+      required:
+        - code
+        - message
+
+    # ---------------------------------------------------------------------------
+    # Currency Enum
+    # Defines the supported currency types.
+    # ---------------------------------------------------------------------------
+    Currency:
+      type: string
+      description: Currency type
+      enum:
+        - USD
+        - EUR
+        - CNY
+        - JPY
+        - GBP
+        - BTC
+        - ETH
+        - USDT
+      example: "USD"
+
+    # ---------------------------------------------------------------------------
+    # Wallet Status Enum
+    # Defines the possible status of a wallet.
+    # ---------------------------------------------------------------------------
+    WalletStatus:
+      type: string
+      description: Wallet status
+      enum:
+        - active
+        - frozen
+        - closed
+        - pending
+      example: "active"
+
+    # ---------------------------------------------------------------------------
+    # Wallet Type Enum
+    # Defines the type of wallet.
+    # ---------------------------------------------------------------------------
+    WalletType:
+      type: string
+      description: Wallet type
+      enum:
+        - spot
+        - futures
+        - savings
+        - card
+        - escrow
+      example: "spot"
+
+    # ---------------------------------------------------------------------------
+    # Wallet Information Object
+    # Represents a complete wallet entity.
+    # ---------------------------------------------------------------------------
+    WalletInfo:
+      type: object
+      description: Complete wallet information
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique wallet identifier
+          example: 10001
+        userId:
+          type: integer
+          format: int64
+          description: User identifier who owns this wallet
+          example: 113453443
+        walletType:
+          $ref: '#/components/schemas/WalletType'
+        currency:
+          $ref: '#/components/schemas/Currency'
+        balance:
+          type: number
+          format: double
+          description: Current wallet balance
+          example: 1500.50
+        availableBalance:
+          type: number
+          format: double
+          description: Available balance (excluding frozen amount)
+          example: 1200.00
+        frozenBalance:
+          type: number
+          format: double
+          description: Frozen/blocked balance
+          example: 300.50
+        status:
+          $ref: '#/components/schemas/WalletStatus'
+        walletAddress:
+          type: string
+          description: Blockchain wallet address (for crypto currencies)
+          example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+          nullable: true
+        createTime:
+          type: string
+          format: date-time
+          description: Timestamp when the wallet was created
+          example: "2024-01-15T08:30:00Z"
+        updateTime:
+          type: string
+          format: date-time
+          description: Timestamp when the wallet was last updated
+          example: "2024-01-15T08:30:00Z"
+      required:
+        - id
+        - userId
+        - walletType
+        - currency
+        - balance
+        - status
+
+    # ---------------------------------------------------------------------------
+    # Wallet Info Response (single wallet)
+    # Uses allOf to combine BaseResponse and a custom data field.
+    # ---------------------------------------------------------------------------
+    WalletInfoResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/WalletInfo'
+          required:
+            - data
+
+    # ---------------------------------------------------------------------------
+    # Wallet List Response (multiple wallets)
+    # Uses allOf to combine BaseResponse and a custom data field.
+    # ---------------------------------------------------------------------------
+    WalletListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              description: List of wallets belonging to the user
+              items:
+                $ref: '#/components/schemas/WalletInfo'
+              minItems: 0
+          required:
+            - data
+
+# =============================================================================
+# API Paths
+# Each path defines the available HTTP methods and their behavior.
+# =============================================================================
+paths:
+  # -------------------------------------------------------------------------
+  # Get Wallet by ID
+  # Retrieves detailed information about a specific wallet.
+  # -------------------------------------------------------------------------
+  /{id}:
+    get:
+      summary: Get wallet by ID
+      description: >
+        Retrieves detailed information about a specific wallet by its ID.
+        The user must be authenticated and have permission to access this wallet.
+      operationId: getWalletById
+      tags:
+        - Wallet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the wallet
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            example: 10001
+      security:
+        - BearerAuth: []
+      responses:
+        # ----- 200 OK: Wallet info retrieved successfully -----
+        '200':
+          description: Wallet information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletInfoResponse'
+              examples:
+                spot_wallet:
+                  summary: Spot wallet response
+                  value:
+                    code: 0
+                    message: "success"
+                    data:
+                      id: 10001
+                      userId: 113453443
+                      walletType: "spot"
+                      currency: "USD"
+                      balance: 1500.50
+                      availableBalance: 1200.00
+                      frozenBalance: 300.50
+                      status: "active"
+                      walletAddress: null
+                      createTime: "2024-01-15T08:30:00Z"
+                      updateTime: "2024-01-15T08:30:00Z"
+                crypto_wallet:
+                  summary: Crypto wallet response
+                  value:
+                    code: 0
+                    message: "success"
+                    data:
+                      id: 10002
+                      userId: 113453443
+                      walletType: "spot"
+                      currency: "BTC"
+                      balance: 0.25000000
+                      availableBalance: 0.20000000
+                      frozenBalance: 0.05000000
+                      status: "active"
+                      walletAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+                      createTime: "2024-01-15T08:30:00Z"
+                      updateTime: "2024-01-15T08:30:00Z"
+
+        # ----- 401 Unauthorized: Missing or invalid token -----
+        '401':
+          description: >
+            Unauthorized. The request lacks valid authentication credentials.
+            This occurs when the Authorization header is missing, the JWT
+            token is expired, or the token signature is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+
+        # ----- 403 Forbidden: Insufficient permissions -----
+        '403':
+          description: >
+            Forbidden. The authenticated user does not have permission to
+            access this wallet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 403
+                message: "You do not have permission to access this wallet"
+
+        # ----- 404 Not Found: Wallet does not exist -----
+        '404':
+          description: Wallet not found with the given ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 404
+                message: "Wallet not found"
+
+        # ----- 500 Internal Server Error -----
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"
+
+  # -------------------------------------------------------------------------
+  # Get Wallets by User ID
+  # Retrieves all wallets belonging to a specific user.
+  # -------------------------------------------------------------------------
+  /user/{id}:
+    get:
+      summary: Get wallets by user ID
+      description: >
+        Retrieves all wallets belonging to a specific user.
+        Returns an array of wallet objects. If the user has no wallets,
+        an empty array is returned.
+      operationId: getWalletsByUserId
+      tags:
+        - Wallet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the user
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            example: 113453443
+        - name: walletType
+          in: query
+          required: false
+          description: Filter wallets by type
+          schema:
+            $ref: '#/components/schemas/WalletType'
+        - name: currency
+          in: query
+          required: false
+          description: Filter wallets by currency
+          schema:
+            $ref: '#/components/schemas/Currency'
+        - name: status
+          in: query
+          required: false
+          description: Filter wallets by status
+          schema:
+            $ref: '#/components/schemas/WalletStatus'
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of wallets to return (pagination)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+        - name: offset
+          in: query
+          required: false
+          description: Number of wallets to skip (pagination)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            example: 0
+      security:
+        - BearerAuth: []
+      responses:
+        # ----- 200 OK: Wallets retrieved successfully -----
+        '200':
+          description: Wallets retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletListResponse'
+              examples:
+                multiple_wallets:
+                  summary: User with multiple wallets
+                  value:
+                    code: 0
+                    message: "success"
+                    data:
+                      - id: 10001
+                        userId: 113453443
+                        walletType: "spot"
+                        currency: "USD"
+                        balance: 1500.50
+                        availableBalance: 1200.00
+                        frozenBalance: 300.50
+                        status: "active"
+                        walletAddress: null
+                        createTime: "2024-01-15T08:30:00Z"
+                        updateTime: "2024-01-15T08:30:00Z"
+                      - id: 10002
+                        userId: 113453443
+                        walletType: "spot"
+                        currency: "BTC"
+                        balance: 0.25000000
+                        availableBalance: 0.20000000
+                        frozenBalance: 0.05000000
+                        status: "active"
+                        walletAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+                        createTime: "2024-01-15T08:30:00Z"
+                        updateTime: "2024-01-15T08:30:00Z"
+                      - id: 10003
+                        userId: 113453443
+                        walletType: "futures"
+                        currency: "USDT"
+                        balance: 5000.00
+                        availableBalance: 3500.00
+                        frozenBalance: 1500.00
+                        status: "active"
+                        walletAddress: null
+                        createTime: "2024-01-15T08:30:00Z"
+                        updateTime: "2024-01-15T08:30:00Z"
+                empty_wallets:
+                  summary: User with no wallets
+                  value:
+                    code: 0
+                    message: "success"
+                    data: []
+                filtered_wallets:
+                  summary: Filtered by currency and type
+                  value:
+                    code: 0
+                    message: "success"
+                    data:
+                      - id: 10002
+                        userId: 113453443
+                        walletType: "spot"
+                        currency: "BTC"
+                        balance: 0.25000000
+                        availableBalance: 0.20000000
+                        frozenBalance: 0.05000000
+                        status: "active"
+                        walletAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+                        createTime: "2024-01-15T08:30:00Z"
+                        updateTime: "2024-01-15T08:30:00Z"
+
+        # ----- 401 Unauthorized: Missing or invalid token -----
+        '401':
+          description: >
+            Unauthorized. The request lacks valid authentication credentials.
+            This occurs when the Authorization header is missing, the JWT
+            token is expired, or the token signature is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+
+        # ----- 403 Forbidden: Insufficient permissions -----
+        '403':
+          description: >
+            Forbidden. The authenticated user does not have permission to
+            view wallets of this user (only admins can view other users' wallets).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 403
+                message: "Insufficient permissions to view this user's wallets"
+
+        # ----- 404 Not Found: User does not exist -----
+        '404':
+          description: User not found with the given ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 404
+                message: "User not found"
+
+        # ----- 500 Internal Server Error -----
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"

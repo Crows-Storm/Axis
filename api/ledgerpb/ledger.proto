@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+option go_package = "github.com/Crows-Storm/Axis/common/genproto/ledgerpb";
+
+service LedgerService {
+
+  rpc CheckBalance(CheckBalanceRequest) returns (CheckBalanceResponse);
+}
+
+message CheckBalanceRequest {
+  string walletId = 1;
+}
+message CheckBalanceResponse {
+}

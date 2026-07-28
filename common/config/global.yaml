@@ -33,13 +33,26 @@ ledger:
 
 
 # redis
+#redis:
+#  host:
+#    - localhost:6379
+#  database: 1
+#  password:
+#  # more profile
+#  cache: false
+
 redis:
-  host:
-    - localhost:6379
-  database: 1
-  password: my999pikaqiu@163.com
-  # more profile
-  cache: false
+  instances:
+    - name: cache
+      addrs: ["localhost:6379"] # cache
+      db: 0
+      password: "my999pikaqiu@163.com"
+      disable_cache: false
+      health_check_interval: 30s
+    - name: session
+      addrs: ["localhost:6379"] # sessions
+      db: 1
+      password: "my999pikaqiu@163.com"
 
 # mongo basic config for read
 basic-mongo:

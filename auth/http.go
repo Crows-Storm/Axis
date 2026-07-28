@@ -9,26 +9,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type HttpServer struct {
+type HTTPServer struct {
 	app app.Application
 }
 
-func (H HttpServer) AuthRoot(c *gin.Context) {
+func (H HTTPServer) AuthRoot(c *gin.Context) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (H HttpServer) Login(c *gin.Context) {
+func (H HTTPServer) Login(c *gin.Context) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (H HttpServer) Logout(c *gin.Context) {
+func (H HTTPServer) Logout(c *gin.Context) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (H HttpServer) Register(c *gin.Context) {
+func (H HTTPServer) Register(c *gin.Context) {
 	var req command.RegisterUserCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
 		server.Error(c, server.CodeServerError, fmt.Sprintf("Invalid request body: %v", err))

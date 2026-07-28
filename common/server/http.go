@@ -18,6 +18,7 @@ func RunHTTPServerOnAddr(addr string, wrapper func(router *gin.Engine)) {
 		c.JSON(200, "pone")
 	})
 	wrapper(apiRouter)
+	apiRouter.Use(gin.Recovery())
 
 	if err := apiRouter.Run(addr); err != nil {
 		panic(err)

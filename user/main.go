@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
-	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/Crows-Storm/Axis/common/config"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
 	"github.com/Crows-Storm/Axis/common/server"
+	"github.com/Crows-Storm/Axis/common/server/redis"
 	"github.com/Crows-Storm/Axis/user/protos"
 	"github.com/Crows-Storm/Axis/user/service"
 	"github.com/gin-gonic/gin"
@@ -21,29 +24,35 @@ func init() {
 }
 
 func main() {
-	// init Redis
-	if err := config.NewRedisConnect(); err != nil {
-		log.Fatalf("[user main] ❌ Redis init failed: %v", err)
-	}
-
-	defer config.CloseRedis()
-
-	// Run Gin HttpServer and GRPCServer
 	serviceName := viper.GetString("user.service-name")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	application := service.NewApplication(ctx)
+	log := config.InitLogger(serviceName)
 
+	redisCfgs, err := config.LoadRedisConfigs()
+	if err != nil {
+		log.WithError(err).Fatal("Failed to load redis config")
+	}
+	if err := redis.Initialize(redisCfgs, log); err != nil {
+		log.WithError(err).Fatal("Failed to init redis")
+	}
+
+	cacheClient, err := redis.Get("cache")
+	if err != nil {
+		log.WithError(err).Fatal("Cache redis instance not found")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// RunGRPCServer
+	application, cleanup := service.NewApplication(ctx, log, cacheClient)
+	defer cleanup()
+
 	go server.RunGRPCServer(serviceName, func(server *grpc.Server) {
 		userServiceServer := protos.NewGRPCServer(application)
 		userpb.RegisterUserServiceServer(server, userServiceServer)
 	})
 
-	// Run HttpServer
-	server.RunHTTPServer(serviceName, func(router *gin.Engine) {
+	go server.RunHTTPServer(serviceName, func(router *gin.Engine) {
 		protos.RegisterHandlersWithOptions(router, HTTPServer{
 			app: application, // inject application
 		}, protos.GinServerOptions{
@@ -53,4 +62,19 @@ func main() {
 		})
 		log.Println("Start Successfully" + serviceName)
 	})
+
+	log.Info("Service is ready 🚀")
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-quit
+	log.WithField("signal", sig.String()).Warn("Received shutdown signal")
+
+	// TODO: It seems ineffective
+	log.Info("Shutting down Redis connections...")
+	defer redis.CloseAll()
+
+	defer cleanup()
+
+	log.Info("Graceful shutdown completed ✅")
 }

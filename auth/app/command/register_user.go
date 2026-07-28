@@ -5,6 +5,8 @@ import (
 
 	"github.com/Crows-Storm/Axis/common/decorator"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
+	redisPkg "github.com/Crows-Storm/Axis/common/server/redis"
+	"github.com/bytedance/gopkg/util/logger"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,6 +20,7 @@ type RegisterUserCommandHandler decorator.CommandHandler[RegisterUserCommand, st
 
 func NewRegisterUserCommandHandler(
 	userGRPC UserService,
+	cacheClient redisPkg.RueidisClient,
 	logger *logrus.Entry,
 	metricsClient decorator.MetricsClient,
 ) RegisterUserCommandHandler {
@@ -25,17 +28,26 @@ func NewRegisterUserCommandHandler(
 		panic("nil userGRPC")
 	}
 	return decorator.ApplyCommandDecorators[RegisterUserCommand, struct{}](
-		registerUserCommandHandler{userGRPC: userGRPC},
+		registerUserCommandHandler{userGRPC: userGRPC, cacheClient: cacheClient},
 		logger,
 		metricsClient,
 	)
 }
 
 type registerUserCommandHandler struct {
-	userGRPC UserService
+	cacheClient redisPkg.RueidisClient
+	userGRPC    UserService
 }
 
 func (r registerUserCommandHandler) Handle(ctx context.Context, cmd RegisterUserCommand) (struct{}, error) {
+	// test cacheClient
+	do := r.cacheClient.Do(ctx, r.cacheClient.B().Get().Key("axis:test:register").Build())
+	resultFromRedis, resultFromRedisErr := do.ToString()
+	if resultFromRedisErr != nil {
+		return struct{}{}, resultFromRedisErr
+	}
+	logger.Infof("Yeah i am get result from redis: %s", resultFromRedis)
+
 	// do something: send verification to sms/email
 
 	// call user grpc interface to create user

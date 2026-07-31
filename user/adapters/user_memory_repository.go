@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Crows-Storm/Axis/common/config"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 	"github.com/bytedance/gopkg/util/logger"
 	"github.com/sirupsen/logrus"
@@ -72,7 +73,7 @@ func (m *MemoryUserRepository) Create(_ context.Context, user *domain.User) (*do
 
 	m.store = append(m.store, newUser)
 
-	logrus.WithFields(logrus.Fields{
+	config.DefaultLogger.WithFields(logrus.Fields{
 		"input_user":         user,
 		"store_after_create": m.store,
 	}).Debug("memory_user_repo_create")

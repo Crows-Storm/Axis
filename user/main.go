@@ -13,6 +13,8 @@ import (
 	"github.com/Crows-Storm/Axis/user/protos"
 	"github.com/Crows-Storm/Axis/user/service"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"github.com/labstack/gommon/log"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 )
@@ -24,9 +26,18 @@ func init() {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Warn("No .env.local.local.example file found, using system environment variables")
+	}
+
 	serviceName := viper.GetString("user.service-name")
 
 	log := config.InitLogger(serviceName)
+
+	log.Info("╔════════════════════════════════════════════════════════════╗")
+	log.Info("║             💥 AXIS - MY PRODUCTIVITY TOOLS                ║")
+	log.Info("╚════════════════════════════════════════════════════════════╝")
 
 	redisCfgs, err := config.LoadRedisConfigs()
 	if err != nil {

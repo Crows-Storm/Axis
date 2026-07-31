@@ -28,6 +28,7 @@ func (H HTTPServer) Logout(c *gin.Context) {
 	panic("implement me")
 }
 
+// Register is Create a New user, return create result
 func (H HTTPServer) Register(c *gin.Context) {
 	var req command.RegisterUserCommand
 	if err := c.ShouldBindJSON(&req); err != nil {

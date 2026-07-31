@@ -15,10 +15,10 @@ func RunHTTPServer(name string, wrapper func(router *gin.Engine)) {
 func RunHTTPServerOnAddr(addr string, wrapper func(router *gin.Engine)) {
 	apiRouter := gin.New()
 	apiRouter.GET("/api/ping", func(c *gin.Context) {
-		c.JSON(200, "pone")
+		Success(c, "pong")
 	})
 	wrapper(apiRouter)
-	apiRouter.Use(gin.Recovery())
+	//apiRouter.Use(gin.Recovery())
 
 	if err := apiRouter.Run(addr); err != nil {
 		panic(err)

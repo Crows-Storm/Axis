@@ -6,7 +6,6 @@ import (
 	"github.com/Crows-Storm/Axis/common/decorator"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
 	redisPkg "github.com/Crows-Storm/Axis/common/server/redis"
-	"github.com/bytedance/gopkg/util/logger"
 	"github.com/sirupsen/logrus"
 )
 
@@ -40,14 +39,6 @@ type registerUserCommandHandler struct {
 }
 
 func (r registerUserCommandHandler) Handle(ctx context.Context, cmd RegisterUserCommand) (struct{}, error) {
-	// test cacheClient
-	do := r.cacheClient.Do(ctx, r.cacheClient.B().Get().Key("axis:test:register").Build())
-	resultFromRedis, resultFromRedisErr := do.ToString()
-	if resultFromRedisErr != nil {
-		return struct{}{}, resultFromRedisErr
-	}
-	logger.Infof("Yeah i am get result from redis: %s", resultFromRedis)
-
 	// do something: send verification to sms/email
 
 	// call user grpc interface to create user

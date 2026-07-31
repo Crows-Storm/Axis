@@ -40,11 +40,11 @@ CREATE TABLE sys_menu (
 -- 插入示例数据
 INSERT INTO sys_menu VALUES
                          (1, 0, 'system', 'System Management', 1, '/system', NULL, 'Layout', 'system', 'system:index', 1, 1, 1, 0, NOW(), NOW()),
-                         (2, 1, 'user', 'User Management', 2, 'user', NULL, 'system/user/index', 'user', 'system:user:list', 1, 1, 1, 0, NOW(), NOW()),
+                         (2, 1, 'user', 'User Management', 2, '/user', NULL, 'system/user/index', 'user', 'system:user:list', 1, 1, 1, 0, NOW(), NOW()),
                          (3, 2, 'user_add', 'User Add', 3, NULL, '/2/3', NULL, NULL, 'system:user:add', 1, 1, 1, 0, NOW(), NOW()),
                          (4, 2, 'user_edit', 'User Edit', 3, NULL, '/2/4', NULL, NULL, 'system:user:edit', 2, 1, 1, 0, NOW(), NOW()),
                          (5, 2, 'user_delete', 'User Delete', 3, NULL, '/2/5', NULL, NULL, 'system:user:delete', 3, 1, 1, 0, NOW(), NOW()),
-                         (6, 1, 'role', 'Role Management', 2, 'role', 'system/role/index', 'role', 'system:role:list', 2, 1, 1, 0, NOW(), NOW());
+                         (6, 1, 'role', 'Role Management', 2, '/role', NULL, 'system/role/index', 'role', 'system:role:list', 2, 1, 1, 0, NOW(), NOW());
 
 CREATE TABLE sys_user_role (
                                id BIGINT PRIMARY KEY AUTO_INCREMENT,

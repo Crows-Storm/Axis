@@ -13,6 +13,8 @@ import (
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/common/server/redis"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"github.com/labstack/gommon/log"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 )
@@ -24,6 +26,11 @@ func init() {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Warn("No .env.local.local file found, using system environment variables")
+	}
+
 	log := config.InitLogger("auth")
 
 	redisCfgs, err := config.LoadRedisConfigs()

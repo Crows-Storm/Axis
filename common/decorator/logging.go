@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/sirupsen/logrus"
 )
 
 type queryLoggingDecorator[C, R any] struct {
-	logger *logrus.Entry
-	base   QueryHandler[C, R]
+	base QueryHandler[C, R]
 }
 type commandLoggingDecorator[C, R any] struct {
 	logger *logrus.Entry
@@ -19,11 +19,10 @@ type commandLoggingDecorator[C, R any] struct {
 
 func (q queryLoggingDecorator[C, R]) Handle(ctx context.Context, cmd C) (result R, err error) {
 
-	logger := q.logger.WithFields(logrus.Fields{
+	logger.WithFields(logrus.Fields{
 		"query":      generateActionName(cmd),
 		"query_body": fmt.Sprintf("%#v", cmd),
-	})
-	logger.Debug("Executing query")
+	}).Debug("Executing query")
 
 	defer func() {
 		if err != nil {

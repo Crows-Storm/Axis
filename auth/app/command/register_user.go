@@ -6,7 +6,6 @@ import (
 	"github.com/Crows-Storm/Axis/common/decorator"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
 	redisPkg "github.com/Crows-Storm/Axis/common/server/redis"
-	"github.com/sirupsen/logrus"
 )
 
 type RegisterUserCommand struct {
@@ -20,7 +19,6 @@ type RegisterUserCommandHandler decorator.CommandHandler[RegisterUserCommand, st
 func NewRegisterUserCommandHandler(
 	userGRPC UserService,
 	cacheClient redisPkg.RueidisClient,
-	logger *logrus.Entry,
 	metricsClient decorator.MetricsClient,
 ) RegisterUserCommandHandler {
 	if userGRPC == nil {
@@ -28,7 +26,6 @@ func NewRegisterUserCommandHandler(
 	}
 	return decorator.ApplyCommandDecorators[RegisterUserCommand, struct{}](
 		registerUserCommandHandler{userGRPC: userGRPC, cacheClient: cacheClient},
-		logger,
 		metricsClient,
 	)
 }

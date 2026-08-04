@@ -5,7 +5,7 @@ info:
   version: 1.0.0
 
 servers:
-  - url: http://localhost:18084
+  - url: http://localhost:18084/api/v1/ledger
     description: Local development server
 
 # =============================================================================

@@ -3,42 +3,44 @@ package server
 import (
 	"net"
 
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
-	"google.golang.org/grpc"
+	"github.com/Crows-Storm/Axis/common/config"
+	"github.com/Crows-Storm/Axis/common/config/logger"
 
+	grpc_logger "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_tags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	"google.golang.org/grpc"
 )
 
-func RunGRPCServer(serviceName string, registerServer func(server *grpc.Server)) {
-	addr := viper.Sub(serviceName).GetString("grpc-addr")
+func RunGRPCServer(registerServer func(server *grpc.Server)) {
+	addr := config.Get().GetGRPCAddr()
 	if addr == "" {
-		addr = viper.GetString("fallback-grpc-addr")
+		logger.Panic("[server.RunGRPCServer] missing GRPCServer configuration.")
 	}
 	RunGRPCServerOnAddr(addr, registerServer)
 }
 
 func RunGRPCServerOnAddr(addr string, registerServer func(server *grpc.Server)) {
-	logrusEntry := logrus.NewEntry(logrus.StandardLogger())
+	loggerEntry := logger.Entry()
+
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			grpc_tags.UnaryServerInterceptor(grpc_tags.WithFieldExtractor(grpc_tags.CodeGenRequestFieldExtractor)),
-			grpc_logrus.UnaryServerInterceptor(logrusEntry),
-		), grpc.ChainStreamInterceptor(
+			grpc_logger.UnaryServerInterceptor(loggerEntry),
+		),
+		grpc.ChainStreamInterceptor(
 			grpc_tags.StreamServerInterceptor(grpc_tags.WithFieldExtractor(grpc_tags.CodeGenRequestFieldExtractor)),
-			grpc_logrus.StreamServerInterceptor(logrusEntry),
+			grpc_logger.StreamServerInterceptor(loggerEntry),
 		),
 	)
 	registerServer(grpcServer)
 
 	listen, err := net.Listen("tcp", addr)
 	if err != nil {
-		logrus.Panic(err)
+		logger.Panic(err)
 	}
 
-	logrus.Infof("Starting gRPC Server, Listening: %s", addr)
+	logger.Infof("Starting gRPC Server, Listening: %s", addr)
 	if err := grpcServer.Serve(listen); err != nil {
-		logrus.Panic(err)
+		logger.Panic(err)
 	}
 }

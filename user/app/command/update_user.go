@@ -6,7 +6,6 @@ import (
 
 	"github.com/Crows-Storm/Axis/common/decorator"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
-	"github.com/sirupsen/logrus"
 )
 
 type UpdateUserCommand struct {
@@ -22,7 +21,6 @@ type updateUserCommandHandler struct {
 
 func NewUpdateUserCommandHandler(
 	repo domain.Repository,
-	logger *logrus.Entry,
 	metricsClient decorator.MetricsClient,
 ) UpdateUserCommandHandler {
 	if repo == nil {
@@ -30,7 +28,6 @@ func NewUpdateUserCommandHandler(
 	}
 	return decorator.ApplyCommandDecorators[UpdateUserCommand, struct{}](
 		updateUserCommandHandler{userRepo: repo},
-		logger,
 		metricsClient,
 	)
 

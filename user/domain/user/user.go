@@ -4,14 +4,14 @@ import "time"
 
 type User struct {
 	Id       int64  `json:"id"`
-	LoginId  string `json:"login_id"`
+	LoginId  string `json:"loginId"`
 	Password string `json:"-"`
 	Email    string `json:"email"`
 	Status   int8   `json:"status"`
 	Deleted  int8   `json:"-"`
 
-	CreateTime time.Time `json:"create_time"`
-	UpdateTime time.Time `json:"update_time"`
+	CreateTime time.Time `json:"createTime"`
+	UpdateTime time.Time `json:"updateTime"`
 }
 
 // Desensitization password

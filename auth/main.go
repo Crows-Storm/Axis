@@ -9,96 +9,111 @@ import (
 	"github.com/Crows-Storm/Axis/auth/protos"
 	"github.com/Crows-Storm/Axis/auth/service"
 	"github.com/Crows-Storm/Axis/common/config"
+	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/genproto/authpb"
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/common/server/redis"
+	"github.com/Crows-Storm/Axis/common/server/store"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/labstack/gommon/log"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 )
 
 func init() {
-	if err := config.NewViperConfig(); err != nil {
-		panic("Init ViperConfig ERROR !!!")
+	err := godotenv.Load()
+	if err != nil {
+		panic("No .env file found, using system environment variables")
 	}
+	config.MustInit()
 }
 
 func main() {
-	err := godotenv.Load()
+	// get env global config
+	cfg := config.Get()
+
+	serviceName := cfg.ServerName
+	err := logger.Init(&logger.Config{
+		Level:       cfg.LogLevel,
+		ServiceName: serviceName,
+	})
 	if err != nil {
-		log.Warn("No .env.local.local file found, using system environment variables")
+		logger.Warn("⚠️ Custom logger initialization failed; the default logger will be used instead ⚠️")
 	}
 
-	log := config.InitLogger("auth")
+	logger.Info("✅ Configuration loaded")
+	logger.Info("✅ Logger Initialization complete")
 
-	redisCfgs, err := config.LoadRedisConfigs()
-	if err != nil {
-		log.WithError(err).Fatal("Failed to load redis config")
-	}
-	if err := redis.Initialize(redisCfgs, log); err != nil {
-		log.WithError(err).Fatal("Failed to init redis")
+	logger.Info("╔════════════════════════════════════════════════════════════╗")
+	logger.Info("║           🔥 AXIS-AUTH - Universal Kanban System           ║")
+	logger.Info("╚════════════════════════════════════════════════════════════╝")
+
+	if err := redis.Initialize(cfg.ReadRedis, cfg.WriteRedis, cfg.RedisHealthCheckInterval); err != nil {
+		logger.Error(err, "Failed to init redis")
 	}
 
-	cacheClient, err := redis.Get("cache")
+	logger.Info("✅ Redis Initialization complete")
+
+	cacheClient, err := redis.GetClient()
 	if err != nil {
-		log.WithError(err).Fatal("Cache redis instance not found")
+		logger.WithError(err).Fatal("Cache redis instance not found")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	application, cleanup := service.NewApplication(ctx, log, cacheClient)
+	application, cleanup := service.NewApplication(ctx, cacheClient)
 	defer cleanup()
 
-	serviceName := viper.GetString("auth.service-name")
+	// init gorm and connection to db
+	dbCfg := cfg.DbConfig
+	logger.Infof("📋 Initializing database (%s)...", dbCfg.DBType)
+	dbType := store.DBTypeSQLite
+	if dbCfg.DBType == "mariadb" {
+		dbType = store.DBTypeMaria
+	}
+	st, err := store.NewWithConfig(store.DBConfig{
+		Type:     dbType,
+		Path:     dbCfg.DBPath,
+		Host:     dbCfg.DBHost,
+		Port:     dbCfg.DBPort,
+		User:     dbCfg.DBLoginId,
+		Password: dbCfg.DBPassword,
+		DBName:   dbCfg.DBSchema,
+		SSLMode:  dbCfg.DBSslMode,
+	})
 
-	go server.RunGRPCServer(serviceName, func(server *grpc.Server) {
+	if err != nil {
+		logger.Fatalf("❌ Failed to initialize database: %v", err)
+	}
+	defer st.Close()
+
+	go server.RunGRPCServer(func(server *grpc.Server) {
 		authServiceServer := protos.NewGRPCServer(application)
 		authpb.RegisterAuthServiceServer(server, authServiceServer)
 	})
 
-	go server.RunHTTPServer(serviceName, func(router *gin.Engine) {
+	go server.RunHTTPServer(cfg.GetServerAddr(), func(router *gin.Engine) {
 		protos.RegisterHandlersWithOptions(router, HTTPServer{
 			app: application, // inject application
 		}, protos.GinServerOptions{
-			BaseURL:      "/api",
+			BaseURL:      "/api/v1/auth",
 			Middlewares:  nil,
 			ErrorHandler: nil,
 		})
-		log.Println("Start Successfully" + serviceName)
+		logger.Println("Start Successfully" + serviceName)
 	})
 
-	log.Info("Service is ready 🚀")
+	logger.Info("Service is ready 🚀")
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-quit
-	log.WithField("signal", sig.String()).Warn("Received shutdown signal")
+	logger.WithField("signal", sig.String()).Warn("Received shutdown signal")
 
-	// TODO 2026/07/28 20:08: Need refactor GRPC & HTTP Server, This allows for greater flexibility and customization, even when using go gen.
-	// Received quit signal to make grpc server on HealthCheckResponse_NOT_SERVING status
-	//healthServer := health.NewServer()
-	//healthpb.RegisterHealthServer(grpcServer, healthServer)
-	//healthServer.SetServingStatus(serviceName, healthpb.HealthCheckResponse_NOT_SERVING)
-	//
-	//log.Info("Shutting down gRPC server...")
-	//grpcServer.GracefulStop()
-	//
-	//// Graceful Stop HTTP (Waiting for the request being processed to complete, at most, waiting: 10s)
-	//log.Info("Shutting down HTTP server...")
-	//shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	//defer shutdownCancel()
-	//if err := httpServer.Shutdown(shutdownCtx); err != nil {
-	//	log.WithError(err).Error("HTTP server forced to shutdown")
-	//}
-
-	// TODO: It seems ineffective
-	log.Info("Shutting down Redis connections...")
+	logger.Info("Shutting down Redis connections...")
 	defer redis.CloseAll()
 
 	defer cleanup()
 
-	log.Info("Graceful shutdown completed ✅")
+	logger.Info("Graceful shutdown completed ✅")
 }

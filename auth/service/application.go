@@ -7,15 +7,14 @@ import (
 	"github.com/Crows-Storm/Axis/auth/app"
 	"github.com/Crows-Storm/Axis/auth/app/command"
 	"github.com/Crows-Storm/Axis/common/client"
+	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/metrics"
-	redisPkg "github.com/Crows-Storm/Axis/common/server/redis"
-	"github.com/sirupsen/logrus"
+	"github.com/Crows-Storm/Axis/common/server/redis"
 )
 
 func NewApplication(
 	ctx context.Context,
-	logger *logrus.Entry,
-	cacheClient redisPkg.RueidisClient,
+	cacheClient redis.RueidisClient,
 ) (app.Application, func()) {
 
 	grpcClient, closeUserGRPCClient, err := client.NewUserGRPCClient(ctx)
@@ -25,7 +24,7 @@ func NewApplication(
 
 	userGRPC := grpc.NewUserGRPC(grpcClient)
 
-	return newApplication(ctx, userGRPC, cacheClient, logger), func() {
+	return newApplication(ctx, userGRPC, cacheClient), func() {
 		_ = closeUserGRPCClient()
 	}
 }
@@ -33,8 +32,7 @@ func NewApplication(
 func newApplication(
 	_ context.Context,
 	userGRPC command.UserService,
-	cacheClient redisPkg.RueidisClient,
-	logger *logrus.Entry,
+	cacheClient redis.RueidisClient,
 ) app.Application {
 
 	metricsClient := metrics.TodoMetrics{}
@@ -44,7 +42,6 @@ func newApplication(
 			RegisterUser: command.NewRegisterUserCommandHandler(
 				userGRPC,
 				cacheClient,
-				logger,
 				metricsClient,
 			),
 		},

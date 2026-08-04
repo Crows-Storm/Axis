@@ -5,7 +5,6 @@ import (
 
 	"github.com/Crows-Storm/Axis/common/decorator"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
-	"github.com/sirupsen/logrus"
 )
 
 type GetUserQuery struct {
@@ -20,7 +19,6 @@ type getUserQueryHandler struct {
 
 func NewGetUserQueryHandler(
 	repo domain.Repository,
-	logger *logrus.Entry,
 	metricsClient decorator.MetricsClient,
 ) GetUserQueryHandler {
 	if repo == nil {
@@ -28,7 +26,6 @@ func NewGetUserQueryHandler(
 	}
 	return decorator.ApplyQueryDecorators[GetUserQuery, *domain.User](
 		getUserQueryHandler{userRepo: repo},
-		logger,
 		metricsClient,
 	)
 }

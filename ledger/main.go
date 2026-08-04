@@ -7,81 +7,113 @@ import (
 	"syscall"
 
 	"github.com/Crows-Storm/Axis/common/config"
+	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/genproto/ledgerpb"
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/common/server/redis"
+	"github.com/Crows-Storm/Axis/common/server/store"
 	"github.com/Crows-Storm/Axis/ledger/protos"
 	"github.com/Crows-Storm/Axis/ledger/service"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/labstack/gommon/log"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 )
 
 func init() {
-	if err := config.NewViperConfig(); err != nil {
-		panic("Init ViperConfig ERROR !!!")
+	err := godotenv.Load()
+	if err != nil {
+		panic("No .env file found, using system environment variables")
 	}
+	config.MustInit()
 }
 
 func main() {
-	err := godotenv.Load()
+	// get env global config
+	cfg := config.Get()
+
+	serviceName := cfg.ServerName
+	err := logger.Init(&logger.Config{
+		Level:       cfg.LogLevel,
+		ServiceName: serviceName,
+	})
 	if err != nil {
-		log.Warn("No .env.local.local.example file found, using system environment variables")
+		logger.Warn("⚠️ Custom logger initialization failed; the default logger will be used instead ⚠️")
 	}
 
-	log := config.InitLogger("ledger")
+	logger.Info("✅ Configuration loaded")
+	logger.Info("✅ Logger Initialization complete")
 
-	redisCfgs, err := config.LoadRedisConfigs()
-	if err != nil {
-		log.WithError(err).Fatal("Failed to load redis config")
-	}
-	if err := redis.Initialize(redisCfgs, log); err != nil {
-		log.WithError(err).Fatal("Failed to init redis")
+	logger.Info("╔════════════════════════════════════════════════════════════╗")
+	logger.Info("║           🔥 AXIS-LEDGER - Universal Kanban System           ║")
+	logger.Info("╚════════════════════════════════════════════════════════════╝")
+
+	if err := redis.Initialize(cfg.ReadRedis, cfg.WriteRedis, cfg.RedisHealthCheckInterval); err != nil {
+		logger.Error(err, "Failed to init redis")
 	}
 
-	cacheClient, err := redis.Get("cache")
+	logger.Info("✅ Redis Initialization complete")
+
+	cacheClient, err := redis.GetClient()
 	if err != nil {
-		log.WithError(err).Fatal("Cache redis instance not found")
+		logger.WithError(err).Fatal("Cache redis instance not found")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	application, cleanup := service.NewApplication(ctx, log, cacheClient)
+	application, cleanup := service.NewApplication(ctx, cacheClient)
 	defer cleanup()
 
-	serviceName := viper.GetString("ledger.service-name")
+	// init gorm and connection to db
+	dbCfg := cfg.DbConfig
+	logger.Infof("📋 Initializing database (%s)...", dbCfg.DBType)
+	dbType := store.DBTypeSQLite
+	if dbCfg.DBType == "mariadb" {
+		dbType = store.DBTypeMaria
+	}
+	st, err := store.NewWithConfig(store.DBConfig{
+		Type:     dbType,
+		Path:     dbCfg.DBPath,
+		Host:     dbCfg.DBHost,
+		Port:     dbCfg.DBPort,
+		User:     dbCfg.DBLoginId,
+		Password: dbCfg.DBPassword,
+		DBName:   dbCfg.DBSchema,
+		SSLMode:  dbCfg.DBSslMode,
+	})
 
-	go server.RunGRPCServer(serviceName, func(server *grpc.Server) {
+	if err != nil {
+		logger.Fatalf("❌ Failed to initialize database: %v", err)
+	}
+	defer st.Close()
+
+	go server.RunGRPCServer(func(server *grpc.Server) {
 		ledgerServiceServer := protos.NewGRPCServer(application)
 		ledgerpb.RegisterLedgerServiceServer(server, ledgerServiceServer)
 	})
 
-	go server.RunHTTPServer(serviceName, func(router *gin.Engine) {
+	go server.RunHTTPServer(cfg.GetServerAddr(), func(router *gin.Engine) {
 		protos.RegisterHandlersWithOptions(router, HTTPServer{
 			app: application, // inject application
 		}, protos.GinServerOptions{
-			BaseURL:      "/api",
+			BaseURL:      "/api/v1/ledger",
 			Middlewares:  nil,
 			ErrorHandler: nil,
 		})
-		log.Println("Start Successfully" + serviceName)
+		logger.Println("Start Successfully" + serviceName)
 	})
 
-	log.Info("Service is ready 🚀")
+	logger.Info("Service is ready 🚀")
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-quit
-	log.WithField("signal", sig.String()).Warn("Received shutdown signal")
+	logger.WithField("signal", sig.String()).Warn("Received shutdown signal")
 
-	// TODO: It seems ineffective
-	log.Info("Shutting down Redis connections...")
+	logger.Info("Shutting down Redis connections...")
 	defer redis.CloseAll()
 
 	defer cleanup()
 
-	log.Info("Graceful shutdown completed ✅")
+	logger.Info("Graceful shutdown completed ✅")
 }

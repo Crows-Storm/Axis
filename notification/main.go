@@ -11,6 +11,6 @@ import (
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Warn("No .env.local.local.example file found, using system environment variables")
+		log.Warn("No .env.example file found, using system environment variables")
 	}
 }

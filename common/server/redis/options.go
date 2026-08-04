@@ -2,46 +2,39 @@ package redis
 
 import (
 	"time"
-
-	"github.com/redis/rueidis"
-	"github.com/sirupsen/logrus"
 )
 
+// Option Client create options
 type Option func(*createOptions)
 
 type createOptions struct {
-	logger         *logrus.Entry
-	clientOptions  []func(*rueidis.ClientOption)
-	healthInterval *time.Duration
+	healthInterval     time.Duration
+	healthCheckEnabled bool
 }
 
 func defaultCreateOptions() *createOptions {
 	return &createOptions{
-		logger: logrus.NewEntry(logrus.StandardLogger()),
+		healthInterval:     30 * time.Second,
+		healthCheckEnabled: true,
 	}
 }
 
-func WithLogger(logger *logrus.Entry) Option {
+// WithLogger Set logger
+func WithLogger() Option {
 	return func(o *createOptions) {
-		o.logger = logger
 	}
 }
 
-func WithClientOption(fn func(*rueidis.ClientOption)) Option {
-	return func(o *createOptions) {
-		o.clientOptions = append(o.clientOptions, fn)
-	}
-}
-
+// WithHealthCheckInterval Set health check intervals
 func WithHealthCheckInterval(d time.Duration) Option {
 	return func(o *createOptions) {
-		o.healthInterval = &d
+		o.healthInterval = d
+		o.healthCheckEnabled = d > 0
 	}
 }
 
 func DisableHealthCheck() Option {
 	return func(o *createOptions) {
-		zero := time.Duration(0)
-		o.healthInterval = &zero
+		o.healthCheckEnabled = false
 	}
 }

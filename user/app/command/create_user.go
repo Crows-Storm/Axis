@@ -7,7 +7,6 @@ import (
 	"github.com/Crows-Storm/Axis/common/decorator"
 	"github.com/Crows-Storm/Axis/common/util"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
-	"github.com/sirupsen/logrus"
 )
 
 type CreateUserCommand struct {
@@ -24,7 +23,6 @@ type createUserCommandHandler struct {
 
 func NewCreateUserCommandHandler(
 	repo domain.Repository,
-	logger *logrus.Entry,
 	metricsClient decorator.MetricsClient,
 ) CreateUserCommandHandler {
 	if repo == nil {
@@ -32,7 +30,6 @@ func NewCreateUserCommandHandler(
 	}
 	return decorator.ApplyCommandDecorators[CreateUserCommand, struct{}](
 		createUserCommandHandler{userRepo: repo},
-		logger,
 		metricsClient,
 	)
 }

@@ -4,13 +4,13 @@ import (
 	"context"
 
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func NewUserGRPCClient(ctx context.Context) (userpb.UserServiceClient, func() error, error) {
-	grpcAddress := viper.GetString("user.grpc-addr")
+	// TODO: Need a service discovery impl
+	grpcAddress := ""
 	opts, err := grpcDialOpts(grpcAddress)
 	if err != nil {
 		return nil, nil, err

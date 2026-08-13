@@ -2,20 +2,25 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/Crows-Storm/Axis/auth/protos"
 	"github.com/Crows-Storm/Axis/auth/service"
 	"github.com/Crows-Storm/Axis/common/config"
 	"github.com/Crows-Storm/Axis/common/config/logger"
+	"github.com/Crows-Storm/Axis/common/discovery/consulx"
+	"github.com/Crows-Storm/Axis/common/discovery/registry"
 	"github.com/Crows-Storm/Axis/common/genproto/authpb"
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/common/server/redis"
 	"github.com/Crows-Storm/Axis/common/server/store"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
@@ -85,35 +90,97 @@ func main() {
 	if err != nil {
 		logger.Fatalf("❌ Failed to initialize database: %v", err)
 	}
-	defer st.Close()
+	defer func(st *store.Store) {
+		err := st.Close()
+		if err != nil {
+			logger.Errorf("Failed to Close database connection: %v", err)
+		}
+	}(st)
 
-	go server.RunGRPCServer(func(server *grpc.Server) {
-		authServiceServer := protos.NewGRPCServer(application)
-		authpb.RegisterAuthServiceServer(server, authServiceServer)
+	discoveryConfig := cfg.ServiceDiscoveryConfig
+	consulClient, err := consulx.NewClient(&consulx.Config{
+		Address: fmt.Sprintf("%s:%d", discoveryConfig.Host, discoveryConfig.Port),
+		Token:   discoveryConfig.ACTToken,
+		Timeout: discoveryConfig.Timeout,
+	})
+	if err != nil {
+		logger.Error("init consul failed", "error", err)
+		os.Exit(1)
+	}
+
+	// register self to consul
+	registrar := registry.NewRegistrar(consulClient, registry.ServiceInfo{
+		Name: serviceName,
+		ID:   fmt.Sprintf("%s-%s-%d", serviceName, cfg.ServerHost, cfg.GRPCPort),
+		Host: cfg.ServerHost,
+		Port: cfg.GRPCPort,
 	})
 
-	go server.RunHTTPServer(cfg.GetServerAddr(), func(router *gin.Engine) {
-		protos.RegisterHandlersWithOptions(router, HTTPServer{
-			app: application, // inject application
+	httpErrCh := server.RunHTTPServerWithLifecycle(ctx, cfg.GetServerAddr(), func(router *gin.Engine) {
+		protos.RegisterHandlersWithOptions(router, &HTTPServer{
+			app: application,
 		}, protos.GinServerOptions{
-			BaseURL:      "/api/v1/auth",
+			BaseURL:      "/api/v1",
 			Middlewares:  nil,
 			ErrorHandler: nil,
 		})
-		logger.Println("Start Successfully" + serviceName)
+		logger.Info("HTTP routes registered successfully")
 	})
+
+	grpcErrCh := server.RunGRPCServerWithLifecycle(
+		ctx,
+		func(server *grpc.Server) {
+			authServiceServer := protos.NewGRPCServer(application)
+			authpb.RegisterAuthServiceServer(server, authServiceServer)
+		},
+		registrar,
+	)
 
 	logger.Info("Service is ready 🚀")
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	sig := <-quit
-	logger.WithField("signal", sig.String()).Warn("Received shutdown signal")
 
-	logger.Info("Shutting down Redis connections...")
-	defer redis.CloseAll()
+	select {
+	case sig := <-quit:
+		logger.WithFields(logrus.Fields{
+			"signal": sig.String(),
+		}).Info("received shutdown signal")
+	case err := <-grpcErrCh:
+		logger.WithFields(logrus.Fields{
+			"error": err,
+		}).Info("gRPC server error, initiating shutdown")
+	case err := <-httpErrCh:
+		logger.WithFields(logrus.Fields{
+			"error": err,
+		}).Info("HTTP server error, initiating shutdown")
+	}
 
-	defer cleanup()
+	logger.Info("initiating graceful shutdown...")
 
-	logger.Info("Graceful shutdown completed ✅")
+	cancel()
+
+	shutdownComplete := make(chan struct{})
+	go func() {
+		for range grpcErrCh {
+		}
+		for range httpErrCh {
+		}
+		close(shutdownComplete)
+	}()
+
+	select {
+	case <-shutdownComplete:
+		logger.Info("all servers stopped gracefully")
+	case <-time.After(45 * time.Second):
+		logger.Warn("shutdown timeout, forcing exit")
+	}
+
+	logger.Info("cleaning up application resources...")
+	cleanup()
+
+	logger.Info("closing Redis connections...")
+	redis.CloseAll()
+
+	logger.Info("graceful shutdown completed ✅")
 }

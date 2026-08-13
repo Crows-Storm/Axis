@@ -5,7 +5,7 @@ info:
   version: 1.0.0
 
 servers:
-  - url: http://localhost:18083/api/v1/user/wallet
+  - url: http://localhost:18083/api/v1
     description: Local development server
 
 # =============================================================================

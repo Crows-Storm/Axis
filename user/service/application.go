@@ -20,7 +20,6 @@ func NewApplication(
 	userRepo := adapters.NewMemoryUserRepository()
 	metricsClient := metrics.TodoMetrics{}
 
-	// logger 参数删掉
 	return newApplication(ctx, userRepo, cacheClient, metricsClient), func() {
 		// TODO: nothing
 	}

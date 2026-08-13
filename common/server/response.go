@@ -28,7 +28,6 @@ const (
 	CodeServerError  = 500
 )
 
-// Success 成功响应
 func Success[D any](c *gin.Context, data D) {
 	c.JSON(http.StatusOK, Response[D]{
 		Code:    CodeSuccess,
@@ -37,7 +36,6 @@ func Success[D any](c *gin.Context, data D) {
 	})
 }
 
-// SuccessWithMessage 成功响应（自定义消息）
 func SuccessWithMessage[D any](c *gin.Context, message string, data D) {
 	c.JSON(http.StatusOK, Response[D]{
 		Code:    CodeSuccess,
@@ -46,19 +44,18 @@ func SuccessWithMessage[D any](c *gin.Context, message string, data D) {
 	})
 }
 
-// Error 错误响应（自动推断 HTTP 状态码）
 func Error(c *gin.Context, code int, message string) {
 	httpStatus := 200
-	if code >= 400 && code < 600 {
-		httpStatus = code
-	}
+	// The HTTP status code returned is 200, but the status code inside the response body is the business result status code
+	//if code >= 400 && code < 600 {
+	//	httpStatus = code
+	//}
 	c.JSON(httpStatus, Response[any]{
 		Code:    code,
 		Message: message,
 	})
 }
 
-// ErrorWithStatus 错误响应（自定义 HTTP 状态码）
 func ErrorWithStatus(c *gin.Context, httpStatus int, code int, message string) {
 	c.JSON(httpStatus, Response[any]{
 		Code:    code,
@@ -66,7 +63,6 @@ func ErrorWithStatus(c *gin.Context, httpStatus int, code int, message string) {
 	})
 }
 
-// Page 分页响应
 func Page[D any](c *gin.Context, list D, total int64, page, pageSize int) {
 	c.JSON(http.StatusOK, Response[PageData[D]]{
 		Code:    CodeSuccess,

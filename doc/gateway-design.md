@@ -1060,7 +1060,7 @@ func main() {
 // go.mod
 module github.com/Crows-Storm/Axis/gateway
 
-go 1.21
+go 1.25.6
 
 require (
     // Web 框架

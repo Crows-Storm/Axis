@@ -13,23 +13,23 @@ type HTTPServer struct {
 	app app.Application
 }
 
-func (H HTTPServer) AuthRoot(c *gin.Context) {
+func (H *HTTPServer) AuthRoot(c *gin.Context) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (H HTTPServer) Login(c *gin.Context) {
+func (H *HTTPServer) Login(c *gin.Context) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (H HTTPServer) Logout(c *gin.Context) {
+func (H *HTTPServer) Logout(c *gin.Context) {
 	//TODO implement me
 	panic("implement me")
 }
 
 // Register is Create a New user, return create result
-func (H HTTPServer) Register(c *gin.Context) {
+func (H *HTTPServer) Register(c *gin.Context) {
 	var req command.RegisterUserCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
 		server.Error(c, server.CodeServerError, fmt.Sprintf("Invalid request body: %v", err))

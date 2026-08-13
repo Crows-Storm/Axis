@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const insecureDefaultJWTSecret = "default-jwt-secret-change-in-production"
@@ -19,12 +20,12 @@ func Get() *Config {
 
 // GetServerAddr build Rest server addr
 func (c *Config) GetServerAddr() string {
-	return fmt.Sprintf("%s:%s", c.ServerHost, c.RestPort)
+	return fmt.Sprintf("%s:%d", c.ServerHost, c.RestPort)
 }
 
 // GetGRPCAddr build GRPC server addr
 func (c *Config) GetGRPCAddr() string {
-	return fmt.Sprintf("%s:%s", c.ServerHost, c.GRPCPort)
+	return fmt.Sprintf("%s:%d", c.ServerHost, c.GRPCPort)
 }
 
 // Config is .env all config
@@ -32,15 +33,22 @@ type Config struct {
 	ServerName               string
 	ServerHost               string
 	LogLevel                 string
-	RestPort                 string
+	RestPort                 int
 	JWTSecret                string
-	GRPCPort                 string
+	GRPCPort                 int
+	ServiceDiscoveryConfig   ConsulConfig
 	DbConfig                 DBConfig
 	RedisHealthCheckInterval int
 	ReadRedis                ReadRedisConfig
 	WriteRedis               WriteRedisConfig
 }
 
+type ConsulConfig struct {
+	Host     string
+	Port     int
+	ACTToken string
+	Timeout  time.Duration
+}
 type DBConfig struct {
 	DBType     string
 	DBPath     string
@@ -87,9 +95,10 @@ func initConfig() error {
 		ServerName:               getEnvAsString("SERVER_NAME", ""),
 		ServerHost:               getEnvAsString("SERVER_HOST", "localhost"),
 		LogLevel:                 getEnvAsString("LOG_LEVEL", "info"),
-		RestPort:                 getEnvAsString("REST_PORT", ""),
+		RestPort:                 getEnvAsInt("REST_PORT", 0),
 		JWTSecret:                getEnvAsString("JWT_SECRET", insecureDefaultJWTSecret),
-		GRPCPort:                 getEnvAsString("GRPC_PORT", ""),
+		ServiceDiscoveryConfig:   getServiceDiscoveryConfig(),
+		GRPCPort:                 getEnvAsInt("GRPC_PORT", 0),
 		DbConfig:                 getDBConfig(),
 		RedisHealthCheckInterval: getRedisHealthCheckInterval(),
 		ReadRedis:                getReadRedis(),
@@ -98,6 +107,15 @@ func initConfig() error {
 	global = cfg
 
 	return nil
+}
+
+func getServiceDiscoveryConfig() ConsulConfig {
+	return ConsulConfig{
+		Host:     getEnvAsString("CONSUL_HOST", "localhost"),
+		Port:     getEnvAsInt("CONSUL_PORT", 8500),
+		ACTToken: getEnvAsString("CONSUL_ACL_TOKEN", ""),
+		Timeout:  time.Duration(getEnvAsInt("CONSUL_TIMEOUT", 5)) * time.Second,
+	}
 }
 
 func getRedisHealthCheckInterval() int {

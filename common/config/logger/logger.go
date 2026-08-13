@@ -212,60 +212,67 @@ func Init(cfg *Config) error {
 	}
 	cfg.SetDefaults()
 
-	// Close previous log file if any
 	if logFile != nil {
 		logFile.Close()
 		logFile = nil
 	}
 
-	// Create a fresh logger
 	Log = logrus.New()
 
-	// Level
-	level, err := logrus.ParseLevel(cfg.Level)
-	if err != nil {
-		level = logrus.InfoLevel
-	}
+	level, _ := logrus.ParseLevel(cfg.Level)
 	Log.SetLevel(level)
 
-	// Formatter
 	Log.SetFormatter(newFormatter())
 
-	// Output writers
+	writers, file, err := buildWriters(cfg)
+	if err != nil {
+		return err
+	}
+	logFile = file
+	Log.SetOutput(io.MultiWriter(writers...))
+
+	if cfg.ServiceName != "" {
+		Log.AddHook(&defaultFieldHook{fields: logrus.Fields{"service": cfg.ServiceName}})
+	}
+	return nil
+}
+
+func buildWriters(cfg *Config) ([]io.Writer, *os.File, error) {
 	var writers []io.Writer
 	if cfg.ConsoleOutput == nil || *cfg.ConsoleOutput {
 		writers = append(writers, os.Stdout)
 	}
 
-	// File output
-	if cfg.LogDir != "" {
-		if err := os.MkdirAll(cfg.LogDir, 0755); err == nil {
-			fileName := cfg.LogFileName
-			if fileName == "" {
-				fileName = fmt.Sprintf("nofx_%s.log", time.Now().Format("2006-01-02"))
-			}
-			fp := filepath.Join(cfg.LogDir, fileName)
-			f, err := os.OpenFile(fp, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-			if err == nil {
-				logFile = f
-				writers = append(writers, f)
-			}
-		}
+	fileWriter, err := createFileWriter(cfg.LogDir, cfg.LogFileName)
+	if err != nil {
+		return nil, nil, err
+	}
+	if fileWriter != nil {
+		writers = append(writers, fileWriter)
 	}
 
 	if len(writers) == 0 {
 		writers = append(writers, os.Stdout)
 	}
-	Log.SetOutput(io.MultiWriter(writers...))
+	return writers, fileWriter.(*os.File), nil
+}
 
-	// Global default fields (e.g. service name) via hook
-	if cfg.ServiceName != "" {
-		Log.AddHook(&defaultFieldHook{
-			fields: logrus.Fields{"service": cfg.ServiceName},
-		})
+func createFileWriter(logDir, fileName string) (io.Writer, error) {
+	if logDir == "" {
+		return nil, nil
 	}
-
-	return nil
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return nil, err
+	}
+	if fileName == "" {
+		fileName = fmt.Sprintf("axis_%s.log", time.Now().Format("2006-01-02"))
+	}
+	fp := filepath.Join(logDir, fileName)
+	f, err := os.OpenFile(fp, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
 // defaultFieldHook injects fields into every log entry.

@@ -1,0 +1,64 @@
+services:
+  # mariadb
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: exampledb
+    volumes:
+      - ./docker-volume/mariadb:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - axis-network
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot" ]
+      timeout: 20s
+      retries: 10
+      interval: 10s
+      start_period: 30s
+
+  # redis
+  redis:
+    image: redis:latest
+    container_name: redis
+    volumes:
+      - ./docker-volume/redis:/data
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass 'yourpassword'
+    networks:
+      - axis-network
+
+  # consul
+  consul:
+    image: hashicorp/consul:latest
+    container_name: consul-server
+    restart: always
+    ports:
+      - "8500:8500"
+      - "8600:8600/tcp"
+      - "8600:8600/udp"
+    volumes:
+      - ./docker-volume/consul-data:/consul/data
+      - ./docker-volume/consul-data/config:/consul/config
+      - ./docker-volume/consul-data/logs:/consul/logs
+      - ./docker-volume/consul-data/consul-acl:/consul/acl
+    command: >
+      agent -server -ui
+      -node=consul-single 
+      -bootstrap-expect=1 
+      -client=0.0.0.0 
+      -config-dir=/consul/config
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+      - CONSUL_CLIENT_INTERFACE=eth0
+      - CONSUL_HTTP_TOKEN=your-master-token-here
+    networks:
+      - axis-network
+
+
+networks:
+  axis-network:
+    driver: bridge

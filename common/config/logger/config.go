@@ -20,7 +20,7 @@ func (c *Config) SetDefaults() {
 		c.Level = "info"
 	}
 	if c.LogDir == "" {
-		c.LogDir = "data"
+		c.LogDir = "data/logs"
 	}
 	if c.ConsoleOutput == nil {
 		t := true

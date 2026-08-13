@@ -3,13 +3,13 @@ package service
 import (
 	"context"
 
-	redisPkg "github.com/Crows-Storm/Axis/common/server/redis"
+	"github.com/Crows-Storm/Axis/common/server/cache"
 	"github.com/Crows-Storm/Axis/wallet/app"
 )
 
 func NewApplication(
 	ctx context.Context,
-	_ redisPkg.RueidisClient,
+	_ cache.RueidisClient,
 ) (app.Application, func()) {
 	//walletRepo := adapters.NewMemoryWalletRepository()
 	//logger := logrus.NewEntry(logrus.New())

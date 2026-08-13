@@ -5,7 +5,8 @@ import (
 
 	"github.com/Crows-Storm/Axis/common/decorator"
 	"github.com/Crows-Storm/Axis/common/metrics"
-	redisPkg "github.com/Crows-Storm/Axis/common/server/redis"
+	"github.com/Crows-Storm/Axis/common/server/cache"
+	"github.com/Crows-Storm/Axis/common/server/store"
 	"github.com/Crows-Storm/Axis/user/adapters"
 	"github.com/Crows-Storm/Axis/user/app"
 	"github.com/Crows-Storm/Axis/user/app/command"
@@ -13,22 +14,39 @@ import (
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 )
 
-func NewApplication(
-	ctx context.Context,
-	cacheClient redisPkg.RueidisClient,
-) (app.Application, func()) {
-	userRepo := adapters.NewMemoryUserRepository()
-	metricsClient := metrics.TodoMetrics{}
-
-	return newApplication(ctx, userRepo, cacheClient, metricsClient), func() {
-		// TODO: nothing
-	}
+// ApplicationDependencies Includes all external dependencies required by the application.
+type ApplicationDependencies struct {
+	Store       *store.Store
+	CacheClient cache.RueidisClient
 }
 
+// NewApplication Create a new Application Instance
+func NewApplication(
+	ctx context.Context,
+	deps ApplicationDependencies,
+) (app.Application, func()) {
+	userRepo := createUserRepository(deps.Store)
+	metricsClient := metrics.TodoMetrics{}
+
+	application := newApplication(ctx, userRepo, deps.CacheClient, metricsClient)
+
+	cleanup := func() {
+		// some close func
+	}
+
+	return application, cleanup
+}
+
+// createUserRepository Create a suitable repository implementation based on the configuration
+func createUserRepository(st *store.Store) domain.Repository {
+	return adapters.NewUserMariaRepository(st)
+}
+
+// newApplication Builder Application layer（Commands + Queries）
 func newApplication(
 	_ context.Context,
 	userRepo domain.Repository,
-	cacheClient redisPkg.RueidisClient,
+	_ cache.RueidisClient,
 	metricsClient decorator.MetricsClient,
 ) app.Application {
 	return app.Application{

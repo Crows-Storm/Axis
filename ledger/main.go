@@ -14,7 +14,7 @@ import (
 	"github.com/Crows-Storm/Axis/common/discovery/registry"
 	"github.com/Crows-Storm/Axis/common/genproto/ledgerpb"
 	"github.com/Crows-Storm/Axis/common/server"
-	"github.com/Crows-Storm/Axis/common/server/redis"
+	"github.com/Crows-Storm/Axis/common/server/cache"
 	"github.com/Crows-Storm/Axis/common/server/store"
 	"github.com/Crows-Storm/Axis/ledger/protos"
 	"github.com/Crows-Storm/Axis/ledger/service"
@@ -51,13 +51,13 @@ func main() {
 	logger.Info("║           🔥 AXIS-LEDGER - Universal Kanban System           ║")
 	logger.Info("╚════════════════════════════════════════════════════════════╝")
 
-	if err := redis.Initialize(cfg.ReadRedis, cfg.WriteRedis, cfg.RedisHealthCheckInterval); err != nil {
+	if err := cache.Initialize(cfg.ReadRedis, cfg.WriteRedis, cfg.RedisHealthCheckInterval); err != nil {
 		logger.Error(err, "Failed to init redis")
 	}
 
 	logger.Info("✅ Redis Initialization complete")
 
-	cacheClient, err := redis.GetClient()
+	cacheClient, err := cache.GetClient()
 	if err != nil {
 		logger.WithError(err).Fatal("Cache redis instance not found")
 	}
@@ -173,7 +173,7 @@ func main() {
 	cleanup()
 
 	logger.Info("closing Redis connections...")
-	redis.CloseAll()
+	cache.CloseAll()
 
 	logger.Info("graceful shutdown completed ✅")
 }

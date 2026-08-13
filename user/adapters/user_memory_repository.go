@@ -8,6 +8,7 @@ import (
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 type MemoryUserRepository struct {
@@ -104,4 +105,34 @@ func (m *MemoryUserRepository) Update(ctx context.Context, user *domain.User, up
 	}
 	return nil
 
+}
+
+func (m MemoryUserRepository) CreateBatch(ctx context.Context, users []*domain.User) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MemoryUserRepository) UpdateStatus(ctx context.Context, userId int64, status int8) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MemoryUserRepository) SoftDelete(ctx context.Context, userId int64) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MemoryUserRepository) List(ctx context.Context, page, pageSize int, filters map[string]interface{}) ([]*domain.User, int64, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MemoryUserRepository) ExistsWithTransaction(tx *gorm.DB, userId int64) (bool, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MemoryUserRepository) GetStats(ctx context.Context) (map[string]interface{}, error) {
+	//TODO implement me
+	panic("implement me")
 }

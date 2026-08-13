@@ -9,12 +9,12 @@ import (
 	"github.com/Crows-Storm/Axis/common/client"
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/metrics"
-	"github.com/Crows-Storm/Axis/common/server/redis"
+	"github.com/Crows-Storm/Axis/common/server/cache"
 )
 
 func NewApplication(
 	ctx context.Context,
-	cacheClient redis.RueidisClient,
+	cacheClient cache.RueidisClient,
 ) (app.Application, func()) {
 
 	grpcClient, closeUserGRPCClient, err := client.NewUserGRPCClient(ctx)
@@ -32,7 +32,7 @@ func NewApplication(
 func newApplication(
 	_ context.Context,
 	userGRPC command.UserService,
-	cacheClient redis.RueidisClient,
+	cacheClient cache.RueidisClient,
 ) app.Application {
 
 	metricsClient := metrics.TodoMetrics{}

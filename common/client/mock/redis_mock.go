@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/Crows-Storm/Axis/common/server/redis"
+	"github.com/Crows-Storm/Axis/common/server/cache"
 	"github.com/redis/rueidis"
 	"github.com/stretchr/testify/mock"
 )
 
-// RueidisClient is the mock implementation of the redis.RueidisClient interface
+// RueidisClient is the mock implementation of the cache.RueidisClient interface
 // Use testify/mock to precisely control the return value of each method
 type RueidisClient struct {
 	mock.Mock
@@ -36,12 +36,12 @@ func (m *RueidisClient) IsHealthy() bool                     { return true }
 func (m *RueidisClient) Close()                              {}
 func (m *RueidisClient) HealthCheck(_ context.Context) error { return nil }
 
-func (m *RueidisClient) Do(ctx context.Context, opType redis.OpType, cmd rueidis.Completed) rueidis.RedisResult {
+func (m *RueidisClient) Do(ctx context.Context, opType cache.OpType, cmd rueidis.Completed) rueidis.RedisResult {
 	args := m.Called(ctx, opType, cmd)
 	return args.Get(0).(rueidis.RedisResult)
 }
 
-func (m *RueidisClient) DoMulti(ctx context.Context, opType redis.OpType, cmds ...rueidis.Completed) []rueidis.RedisResult {
+func (m *RueidisClient) DoMulti(ctx context.Context, opType cache.OpType, cmds ...rueidis.Completed) []rueidis.RedisResult {
 	args := m.Called(ctx, opType, cmds)
 	return args.Get(0).([]rueidis.RedisResult)
 }

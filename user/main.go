@@ -14,7 +14,7 @@ import (
 	"github.com/Crows-Storm/Axis/common/discovery/registry"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
 	"github.com/Crows-Storm/Axis/common/server"
-	"github.com/Crows-Storm/Axis/common/server/redis"
+	"github.com/Crows-Storm/Axis/common/server/cache"
 	"github.com/Crows-Storm/Axis/common/server/store"
 	"github.com/Crows-Storm/Axis/user/protos"
 	"github.com/Crows-Storm/Axis/user/service"
@@ -51,22 +51,19 @@ func main() {
 	logger.Info("║           🔥 AXIS-USER - Universal Kanban System           ║")
 	logger.Info("╚════════════════════════════════════════════════════════════╝")
 
-	if err := redis.Initialize(cfg.ReadRedis, cfg.WriteRedis, cfg.RedisHealthCheckInterval); err != nil {
+	if err := cache.Initialize(cfg.ReadRedis, cfg.WriteRedis, cfg.RedisHealthCheckInterval); err != nil {
 		logger.Error(err, "Failed to init redis")
 	}
 
 	logger.Info("✅ Redis Initialization complete")
 
-	cacheClient, err := redis.GetClient()
+	cacheClient, err := cache.GetClient()
 	if err != nil {
 		logger.WithError(err).Fatal("Cache redis instance not found")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	application, cleanup := service.NewApplication(ctx, cacheClient)
-	defer cleanup()
 
 	// init gorm and connection to db
 	dbCfg := cfg.DbConfig
@@ -95,6 +92,13 @@ func main() {
 			logger.Errorf("Failed to Close database connection: %v", err)
 		}
 	}(st)
+
+	// 创建 Application（依赖注入）
+	application, cleanup := service.NewApplication(ctx, service.ApplicationDependencies{
+		Store:       st,
+		CacheClient: cacheClient,
+	})
+	defer cleanup()
 
 	discoveryConfig := cfg.ServiceDiscoveryConfig
 	consulClient, err := consulx.NewClient(&consulx.Config{
@@ -173,7 +177,7 @@ func main() {
 	cleanup()
 
 	logger.Info("closing Redis connections...")
-	redis.CloseAll()
+	cache.CloseAll()
 
 	logger.Info("graceful shutdown completed ✅")
 }

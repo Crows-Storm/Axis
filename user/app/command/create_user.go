@@ -36,13 +36,18 @@ func NewCreateUserCommandHandler(
 
 // Handle implementation of `CreateUserCommand` returns void
 func (c createUserCommandHandler) Handle(ctx context.Context, cmd CreateUserCommand) (struct{}, error) {
+	// You can send domain events here to add other operations, such as:
+	// - Create a user configuration record
+	// - Send a welcome email (recorded in the task table)
+	// - Create an audit log
+	// If any operation fails, the entire transaction will be rolled back.
 	_, err := c.userRepo.Create(ctx, &domain.User{
 		Id:         util.GenerateID(),
 		LoginId:    cmd.LoginId,
 		Password:   cmd.Password,
 		Email:      cmd.Email,
-		CreateTime: time.Time{},
-		UpdateTime: time.Time{},
+		CreateTime: time.Now(),
+		UpdateTime: time.Now(),
 	})
 	if err != nil {
 		return struct{}{}, err

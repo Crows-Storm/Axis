@@ -1,5 +1,5 @@
 CREATE TABLE sys_user (
-                          id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'user unique id',
+                          id BIGINT UNSIGNED PRIMARY KEY COMMENT 'user unique id',
                           login_id VARCHAR(50) NOT NULL COMMENT 'user login id',
                           password VARCHAR(255) NOT NULL COMMENT 'password',
                           email VARCHAR(100),

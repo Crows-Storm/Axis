@@ -1,6 +1,8 @@
 package user
 
-import "time"
+import (
+	"time"
+)
 
 type User struct {
 	Id       int64  `json:"id"`
@@ -18,3 +20,8 @@ type User struct {
 //func (u *User) Desensitization() {
 //	u.password = ""
 //}
+
+func (u *User) Create() {
+	u.CreateTime = time.Now()
+	u.UpdateTime = time.Now()
+}

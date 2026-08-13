@@ -5,7 +5,7 @@ import (
 
 	"github.com/Crows-Storm/Axis/common/decorator"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
-	redisPkg "github.com/Crows-Storm/Axis/common/server/redis"
+	"github.com/Crows-Storm/Axis/common/server/cache"
 )
 
 type RegisterUserCommand struct {
@@ -18,7 +18,7 @@ type RegisterUserCommandHandler decorator.CommandHandler[RegisterUserCommand, st
 
 func NewRegisterUserCommandHandler(
 	userGRPC UserService,
-	cacheClient redisPkg.RueidisClient,
+	cacheClient cache.RueidisClient,
 	metricsClient decorator.MetricsClient,
 ) RegisterUserCommandHandler {
 	if userGRPC == nil {
@@ -31,12 +31,16 @@ func NewRegisterUserCommandHandler(
 }
 
 type registerUserCommandHandler struct {
-	cacheClient redisPkg.RueidisClient
+	cacheClient cache.RueidisClient
 	userGRPC    UserService
 }
 
 func (r registerUserCommandHandler) Handle(ctx context.Context, cmd RegisterUserCommand) (struct{}, error) {
-	// do something: send verification to sms/email
+	if cmd.LoginId == "" || cmd.Password == "" || cmd.Email == "" {
+		return struct{}{}, decorator.CommandExecutedError{
+			Msg: "LoginId, password, and email cannot be empty.",
+		}
+	}
 
 	// call user grpc interface to create user
 	_, err := r.userGRPC.CreateUser(ctx, &userpb.CreateUserRequest{

@@ -3,13 +3,13 @@ package service
 import (
 	"context"
 
-	redisPkg "github.com/Crows-Storm/Axis/common/server/redis"
+	"github.com/Crows-Storm/Axis/common/server/cache"
 	"github.com/Crows-Storm/Axis/ledger/app"
 )
 
 func NewApplication(
 	ctx context.Context,
-	cacheClient redisPkg.RueidisClient,
+	cacheClient cache.RueidisClient,
 ) (app.Application, func()) {
 
 	return newApplication(ctx, cacheClient), func() {
@@ -19,7 +19,7 @@ func NewApplication(
 
 func newApplication(
 	_ context.Context,
-	_ redisPkg.RueidisClient,
+	_ cache.RueidisClient,
 ) app.Application {
 
 	//metricsClient := metrics.TodoMetrics{}

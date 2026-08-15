@@ -10,8 +10,6 @@ servers:
 
 # =============================================================================
 # Security Schemes
-# Defines the authentication methods available for this API.
-# The Bearer token scheme is used for JWT-based authentication.
 # =============================================================================
 components:
   securitySchemes:
@@ -25,13 +23,10 @@ components:
 
   # ===========================================================================
   # Reusable Schemas
-  # These schemas define the data models used in requests and responses.
-  # They are referenced via $ref to keep the spec DRY (Don't Repeat Yourself).
   # ===========================================================================
   schemas:
     # ---------------------------------------------------------------------------
     # Base Response (without data field)
-    # Used as the foundation for all successful responses via allOf composition.
     # ---------------------------------------------------------------------------
     BaseResponse:
       type: object
@@ -53,8 +48,7 @@ components:
         - message
 
     # ---------------------------------------------------------------------------
-    # Error Response (for non-200 status codes)
-    # This is a specialized response that doesn't use the data field.
+    # Error Response
     # ---------------------------------------------------------------------------
     ErrorResponse:
       type: object
@@ -71,7 +65,6 @@ components:
           type: string
           description: Human-readable error message
           example: "Authentication token is missing or invalid"
-        # data field is optional and usually null in error responses
         data:
           nullable: true
           description: Additional error details (usually null)
@@ -81,7 +74,6 @@ components:
 
     # ---------------------------------------------------------------------------
     # User Information Object
-    # Represents the core profile data of a user.
     # ---------------------------------------------------------------------------
     UserInfo:
       type: object
@@ -122,9 +114,13 @@ components:
         - id
         - loginId
         - status
+
+    # ---------------------------------------------------------------------------
+    # Request Schemas
+    # ---------------------------------------------------------------------------
     UpdateUserInfoRequest:
       type: object
-      description: Core profile information of the user
+      description: Request body for updating current user info
       properties:
         loginId:
           type: string
@@ -133,7 +129,7 @@ components:
         password:
           type: string
           format: password
-          description: password of the user
+          description: Password of the user
           example: "123456"
         email:
           type: string
@@ -145,9 +141,59 @@ components:
         - password
         - email
 
+    CreateUserRequest:
+      type: object
+      description: Request body for creating a new user
+      properties:
+        loginId:
+          type: string
+          description: Login username of the user
+          example: "newuser"
+        password:
+          type: string
+          format: password
+          description: Password of the user
+          example: "password123"
+        email:
+          type: string
+          format: email
+          description: Email address of the user
+          example: "newuser@example.com"
+      required:
+        - loginId
+        - password
+        - email
+
+    CreateBatchUserRequest:
+      type: object
+      description: Request body for batch creating users
+      properties:
+        users:
+          type: array
+          description: List of users to create
+          items:
+            $ref: '#/components/schemas/CreateUserRequest'
+          minItems: 1
+          maxItems: 100
+      required:
+        - users
+
+    UpdateStatusRequest:
+      type: object
+      description: Request body for updating user status
+      properties:
+        status:
+          type: integer
+          description: >
+            Account status code.
+            0 = disabled, 1 = active
+          enum: [0, 1]
+          example: 1
+      required:
+        - status
+
     # ---------------------------------------------------------------------------
-    # UserInfo Response (with data field typed as UserInfo)
-    # Uses allOf to combine BaseResponse and a custom data field.
+    # Response Schemas
     # ---------------------------------------------------------------------------
     UserInfoResponse:
       allOf:
@@ -158,6 +204,7 @@ components:
               $ref: '#/components/schemas/UserInfo'
           required:
             - data
+
     UpdateUserInfoResponse:
       allOf:
         - $ref: '#/components/schemas/BaseResponse'
@@ -165,15 +212,161 @@ components:
           properties:
             data:
               type: string
+              description: Operation result message
+          required:
+            - data
+
+    UserListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              description: Paginated list of users
+              properties:
+                total:
+                  type: integer
+                  format: int64
+                  description: Total number of records
+                  example: 100
+                page:
+                  type: integer
+                  description: Current page number
+                  example: 1
+                pageSize:
+                  type: integer
+                  description: Number of records per page
+                  example: 10
+                list:
+                  type: array
+                  description: List of user records
+                  items:
+                    $ref: '#/components/schemas/UserInfo'
+              required:
+                - total
+                - page
+                - pageSize
+                - list
+          required:
+            - data
+
+    UserStatsResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              description: User statistics information
+              properties:
+                totalUsers:
+                  type: integer
+                  format: int64
+                  description: Total number of users
+                  example: 1500
+                activeUsers:
+                  type: integer
+                  format: int64
+                  description: Number of active users
+                  example: 1200
+                disabledUsers:
+                  type: integer
+                  format: int64
+                  description: Number of disabled users
+                  example: 300
+              required:
+                - totalUsers
+                - activeUsers
+                - disabledUsers
+          required:
+            - data
+
+    ExistsResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: boolean
+              description: Whether the user exists
+              example: true
+          required:
+            - data
+
+    CreateBatchResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              description: Batch creation result
+              properties:
+                successCount:
+                  type: integer
+                  description: Number of successfully created users
+                  example: 5
+                failCount:
+                  type: integer
+                  description: Number of failed creations
+                  example: 1
+                errors:
+                  type: array
+                  description: Details of failed creations
+                  items:
+                    type: object
+                    properties:
+                      index:
+                        type: integer
+                        description: Index of the failed item in the request array
+                        example: 2
+                      message:
+                        type: string
+                        description: Error message for this item
+                        example: "loginId already exists"
+              required:
+                - successCount
+                - failCount
+          required:
+            - data
+
+    DeleteResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: string
+              description: Operation result message
+              example: "User deleted successfully"
+          required:
+            - data
+
+    UpdateStatusResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: string
+              description: Operation result message
+              example: "User status updated successfully"
           required:
             - data
 
 # =============================================================================
 # API Paths
-# Each path defines the available HTTP methods and their behavior.
 # =============================================================================
 paths:
+
+  # ===========================================================================
+  # / - Root resource
+  # ===========================================================================
   /:
+    # -------------------------------------------------------------------------
+    # GetInfo - Get current user info
+    # -------------------------------------------------------------------------
     get:
       summary: Get current user info
       description: >
@@ -184,11 +377,9 @@ paths:
       operationId: getCurrentUserInfo
       tags:
         - User
-      # Require Bearer token authentication for this endpoint
       security:
         - BearerAuth: []
       responses:
-        # ----- 200 OK: User info retrieved successfully -----
         '200':
           description: User information retrieved successfully
           content:
@@ -205,13 +396,9 @@ paths:
                   status: 1
                   create_time: "2024-01-15T08:30:00Z"
                   update_time: "2024-01-15T08:30:00Z"
-
-        # ----- 401 Unauthorized: Missing or invalid token -----
         '401':
           description: >
             Unauthorized. The request lacks valid authentication credentials.
-            This occurs when the Authorization header is missing, the JWT
-            token is expired, or the token signature is invalid.
           content:
             application/json:
               schema:
@@ -219,13 +406,8 @@ paths:
               example:
                 code: 401
                 message: "Authentication token is missing or invalid"
-
-        # ----- 500 Internal Server Error: Unexpected server failure -----
         '500':
-          description: >
-            Internal server error. An unexpected condition was encountered
-            while processing the request. The client should retry after
-            a short delay or contact support if the issue persists.
+          description: Internal server error.
           content:
             application/json:
               schema:
@@ -233,16 +415,18 @@ paths:
               example:
                 code: 500
                 message: "Internal server error"
+
+    # -------------------------------------------------------------------------
+    # Update - Update current user info
+    # -------------------------------------------------------------------------
     put:
       summary: Update current user info
-      description: >
-        Modify the current user's information
+      description: Modify the current user's information
       operationId: UpdateCurrentUserInfo
       tags:
         - User
-      # Require Bearer token authentication for this endpoint
       security:
-        - BearerAuth: [ ]
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -256,15 +440,112 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UpdateUserInfoResponse'
+              example:
+                code: 0
+                message: "success"
+                data: "User info updated successfully"
+        '400':
+          description: Bad request. Invalid input data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: "Invalid input data"
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"
 
+    # -------------------------------------------------------------------------
+    # Create - Create a new user
+    # -------------------------------------------------------------------------
+    post:
+      summary: Create a new user
+      description: Create a new user account with the provided information.
+      operationId: createUser
+      tags:
+        - User
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfoResponse'
+              example:
+                code: 0
+                message: "success"
+                data:
+                  id: 113453444
+                  loginId: "newuser"
+                  email: "newuser@example.com"
+                  status: 1
+                  create_time: "2024-06-01T10:00:00Z"
+                  update_time: "2024-06-01T10:00:00Z"
+        '400':
+          description: Bad request. Invalid input data or user already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: "loginId already exists"
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"
+
+  # ===========================================================================
+  # /{id} - User resource by ID
+  # ===========================================================================
   /{id}:
+    # -------------------------------------------------------------------------
+    # GetInfo - Get user info by ID
+    # -------------------------------------------------------------------------
     get:
-      summary: Get current user info
+      summary: Get user info by ID
       description: >
-        Retrieves the profile information of the currently authenticated user.
-        The user identity is determined from the JWT token provided in the
-        Authorization header. This endpoint does not accept any path or query
-        parameters.
+        Retrieves the profile information of a specific user identified by
+        their unique ID.
       operationId: getUserInfoById
       tags:
         - User
@@ -278,11 +559,9 @@ paths:
             format: int64
             minimum: 1
             example: 113453443
-      # Require Bearer token authentication for this endpoint
       security:
-        - BearerAuth: [ ]
+        - BearerAuth: []
       responses:
-        # ----- 200 OK: User info retrieved successfully -----
         '200':
           description: User information retrieved successfully
           content:
@@ -299,13 +578,8 @@ paths:
                   status: 1
                   create_time: "2024-01-15T08:30:00Z"
                   update_time: "2024-01-15T08:30:00Z"
-
-        # ----- 401 Unauthorized: Missing or invalid token -----
         '401':
-          description: >
-            Unauthorized. The request lacks valid authentication credentials.
-            This occurs when the Authorization header is missing, the JWT
-            token is expired, or the token signature is invalid.
+          description: Unauthorized.
           content:
             application/json:
               schema:
@@ -313,13 +587,443 @@ paths:
               example:
                 code: 401
                 message: "Authentication token is missing or invalid"
-
-        # ----- 500 Internal Server Error: Unexpected server failure -----
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 404
+                message: "User not found"
         '500':
-          description: >
-            Internal server error. An unexpected condition was encountered
-            while processing the request. The client should retry after
-            a short delay or contact support if the issue persists.
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"
+
+    # -------------------------------------------------------------------------
+    # SoftDelete - Soft delete a user by ID
+    # -------------------------------------------------------------------------
+    delete:
+      summary: Soft delete a user
+      description: >
+        Soft delete a user by setting their status to deleted.
+        The user record is retained in the database but marked as deleted.
+      operationId: softDeleteUser
+      tags:
+        - User
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the user to delete
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            example: 113453443
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User soft deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResponse'
+              example:
+                code: 0
+                message: "success"
+                data: "User deleted successfully"
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 404
+                message: "User not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"
+
+  # ===========================================================================
+  # /list - List users
+  # ===========================================================================
+  /list:
+    # -------------------------------------------------------------------------
+    # List - List users with pagination
+    # -------------------------------------------------------------------------
+    get:
+      summary: List users
+      description: >
+        Retrieves a paginated list of users. Supports filtering by status
+        and keyword search on loginId or email.
+      operationId: listUsers
+      tags:
+        - User
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number (starting from 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: pageSize
+          in: query
+          required: false
+          description: Number of records per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+            example: 10
+        - name: status
+          in: query
+          required: false
+          description: Filter by account status (0 = disabled, 1 = active)
+          schema:
+            type: integer
+            enum: [0, 1]
+            example: 1
+        - name: keyword
+          in: query
+          required: false
+          description: Search keyword for loginId or email
+          schema:
+            type: string
+            example: "john"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+              example:
+                code: 0
+                message: "success"
+                data:
+                  total: 50
+                  page: 1
+                  pageSize: 10
+                  list:
+                    - id: 113453443
+                      loginId: "johndoe"
+                      email: "johndoe@example.com"
+                      status: 1
+                      create_time: "2024-01-15T08:30:00Z"
+                      update_time: "2024-01-15T08:30:00Z"
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"
+
+  # ===========================================================================
+  # /batch - Batch operations
+  # ===========================================================================
+  /batch:
+    # -------------------------------------------------------------------------
+    # CreateBatch - Batch create users
+    # -------------------------------------------------------------------------
+    post:
+      summary: Batch create users
+      description: >
+        Create multiple user accounts in a single request.
+        Returns the count of successful and failed creations along
+        with error details for each failed item.
+      operationId: createBatchUsers
+      tags:
+        - User
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBatchUserRequest'
+      responses:
+        '200':
+          description: Batch creation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateBatchResponse'
+              example:
+                code: 0
+                message: "success"
+                data:
+                  successCount: 4
+                  failCount: 1
+                  errors:
+                    - index: 2
+                      message: "loginId already exists"
+        '400':
+          description: Bad request. Invalid input data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: "Users list cannot be empty"
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"
+
+  # ===========================================================================
+  # /exists - Check user existence
+  # ===========================================================================
+  /exists:
+    # -------------------------------------------------------------------------
+    # ExistsWithTransaction - Check if a user exists
+    # -------------------------------------------------------------------------
+    get:
+      summary: Check if a user exists
+      description: >
+        Check whether a user exists by loginId or email within a
+        transactional context. Returns true if the user exists,
+        false otherwise.
+      operationId: existsWithTransaction
+      tags:
+        - User
+      parameters:
+        - name: loginId
+          in: query
+          required: false
+          description: Login username to check
+          schema:
+            type: string
+            example: "johndoe"
+        - name: email
+          in: query
+          required: false
+          description: Email address to check
+          schema:
+            type: string
+            format: email
+            example: "johndoe@example.com"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Existence check completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExistsResponse'
+              example:
+                code: 0
+                message: "success"
+                data: true
+        '400':
+          description: Bad request. At least one of loginId or email is required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: "At least one of loginId or email is required"
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"
+
+  # ===========================================================================
+  # /stats - User statistics
+  # ===========================================================================
+  /stats:
+    # -------------------------------------------------------------------------
+    # GetStats - Get user statistics
+    # -------------------------------------------------------------------------
+    get:
+      summary: Get user statistics
+      description: >
+        Retrieves aggregate statistics about users, including total count,
+        active count, and disabled count.
+      operationId: getUserStats
+      tags:
+        - User
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStatsResponse'
+              example:
+                code: 0
+                message: "success"
+                data:
+                  totalUsers: 1500
+                  activeUsers: 1200
+                  disabledUsers: 300
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                message: "Internal server error"
+
+  # ===========================================================================
+  # /{id}/status - User status management
+  # ===========================================================================
+  /{id}/status:
+    # -------------------------------------------------------------------------
+    # UpdateStatus - Update user status
+    # -------------------------------------------------------------------------
+    put:
+      summary: Update user status
+      description: >
+        Update the status of a specific user (enable or disable).
+        The user is identified by their unique ID.
+      operationId: updateUserStatus
+      tags:
+        - User
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the user
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            example: 113453443
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStatusRequest'
+      responses:
+        '200':
+          description: User status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateStatusResponse'
+              example:
+                code: 0
+                message: "success"
+                data: "User status updated successfully"
+        '400':
+          description: Bad request. Invalid status value.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: "Invalid status value"
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                message: "Authentication token is missing or invalid"
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 404
+                message: "User not found"
+        '500':
+          description: Internal server error.
           content:
             application/json:
               schema:

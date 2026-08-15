@@ -10,7 +10,7 @@ type User struct {
 	Password string `json:"-"`
 	Email    string `json:"email"`
 	Status   int8   `json:"status"`
-	Deleted  int8   `json:"-"`
+	Deleted  int8   `json:"deleted"`
 
 	CreateTime time.Time `json:"createTime"`
 	UpdateTime time.Time `json:"updateTime"`

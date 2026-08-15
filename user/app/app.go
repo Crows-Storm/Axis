@@ -11,8 +11,9 @@ type Application struct {
 }
 
 type Commands struct {
-	CreateUser command.CreateUserCommandHandler
-	UpdateUser command.UpdateUserCommandHandler
+	CreateUser       command.CreateUserCommandHandler
+	CreateBatchUsers command.CreateBatchUserCommandHandler
+	UpdateUser       command.UpdateUserCommandHandler
 }
 
 type Queries struct {

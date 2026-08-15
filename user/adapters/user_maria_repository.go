@@ -335,6 +335,19 @@ func (u *UserMariaRepository) List(ctx context.Context, page, pageSize int, filt
 	return users, total, nil
 }
 
+//func (u *UserMariaRepository) Page(ctx context.Context, args pagination.Args) (*pagination.Connection[*domain.User], error) {
+//	connection, err := pagination.FetchConnection[UserModel](u.store.DB(), u.store.DB().WithContext(ctx).Model(&UserModel{}), pagination.DefaultConfig(), args)
+//	if err != nil {
+//		return nil, err
+//	}
+//	domainConnection := pagination.Connection[*domain.User]{
+//		TotalCount: connection.TotalCount,
+//		Edges:      toDomainEdges(),
+//		PageInfo:   connection.PageInfo,
+//	}
+//
+//}
+
 func (u *UserMariaRepository) ExistsWithTransaction(tx *gorm.DB, userId int64) (bool, error) {
 	var count int64
 	err := tx.Model(&UserModel{}).
@@ -348,6 +361,7 @@ func (u *UserMariaRepository) ExistsWithTransaction(tx *gorm.DB, userId int64) (
 	return count > 0, nil
 }
 
+// GetStats query in dashboard or grpc
 func (u *UserMariaRepository) GetStats(ctx context.Context) (map[string]interface{}, error) {
 	u.lock.RLock()
 	defer u.lock.RUnlock()

@@ -3,15 +3,12 @@ package user
 import (
 	"context"
 	"fmt"
-
-	"gorm.io/gorm"
 )
 
 type Repository interface {
 	GetInfo(id int64) (*User, error)
-	ExistsWithTransaction(tx *gorm.DB, userId int64) (bool, error)
+	ExistsWithTransaction(ctx context.Context, id int64, loginId string, email string) (bool, error)
 	GetStats(ctx context.Context) (map[string]interface{}, error)
-	List(ctx context.Context, page, pageSize int, filters map[string]interface{}) ([]*User, int64, error)
 
 	Create(ctx context.Context, user *User) (*User, error)
 	CreateBatch(ctx context.Context, users []*User) error
@@ -20,7 +17,7 @@ type Repository interface {
 		user *User,
 		updateFun func(context.Context, *User) (*User, error),
 	) error
-	UpdateStatus(ctx context.Context, userId int64, status int8) error
+	Disable(ctx context.Context, userId int64) error
 
 	// Dangerous operation
 	SoftDelete(ctx context.Context, userId int64) error

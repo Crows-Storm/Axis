@@ -51,11 +51,15 @@ func newApplication(
 ) app.Application {
 	return app.Application{
 		Commands: app.Commands{
-			CreateUser: command.NewCreateUserCommandHandler(userRepo, metricsClient),
-			UpdateUser: command.NewUpdateUserCommandHandler(userRepo, metricsClient),
+			CreateUser:     command.NewCreateUserCommandHandler(userRepo, metricsClient),
+			UpdateUser:     command.NewUpdateUserCommandHandler(userRepo, metricsClient),
+			SoftDeleteUser: command.NewSoftDeleteUserCommandHandler(userRepo, metricsClient),
+			DisableUser:    command.NewDisableUserCommandHandler(userRepo, metricsClient),
 		},
 		Queries: app.Queries{
-			GetUser: query.NewGetUserQueryHandler(userRepo, metricsClient),
+			GetUser:            query.NewGetUserQueryHandler(userRepo, metricsClient),
+			UserExists:         query.NewUserExistsHandler(userRepo, metricsClient),
+			UserStatusAnalysis: query.NewUserStatusAnalysisHandler(userRepo, metricsClient),
 		},
 	}
 }

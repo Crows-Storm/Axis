@@ -1,22 +1,53 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	time "time"
 
+	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/user/app"
 	"github.com/Crows-Storm/Axis/user/app/command"
 	"github.com/Crows-Storm/Axis/user/app/query"
+	domain "github.com/Crows-Storm/Axis/user/domain/user"
 	"github.com/Crows-Storm/Axis/user/protos"
 	"github.com/gin-gonic/gin"
 )
 
+// HTTPServer all command not return data, but query can return something
 type HTTPServer struct {
 	app app.Application
 }
 
+func (H HTTPServer) CreateUser(c *gin.Context) {
+	var req command.CreateUserCommand
+	if err := c.ShouldBindJSON(&req); err != nil {
+		server.Error(c, server.CodeBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		return
+	}
+
+	result, err := H.app.Commands.CreateUser.Handle(c, req)
+	if err != nil {
+		server.Error(c, server.CodeServerError, fmt.Sprintf("Failed to create users: %v", err))
+		return
+	}
+	server.Success(c, result)
+}
+
+func (H HTTPServer) Disable(c *gin.Context, id int64) {
+	result, err := H.app.Commands.DisableUser.Handle(c, command.DisableUserCommand{
+		Id: id,
+	})
+	if err != nil {
+		server.Error(c, server.CodeBadRequest, fmt.Sprintf("Failed to disable users: %v", err))
+		return
+	}
+	server.Success(c, result)
+}
+
 func (H HTTPServer) CreateBatchUsers(c *gin.Context) {
-	var req []command.CreateBatchUserCommand
+	var req command.CreateBatchUserCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
 		server.Error(c, server.CodeBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
@@ -31,17 +62,26 @@ func (H HTTPServer) CreateBatchUsers(c *gin.Context) {
 }
 
 func (H HTTPServer) ExistsWithTransaction(c *gin.Context, params protos.ExistsWithTransactionParams) {
-	//TODO implement me
-	panic("implement me")
+	var req query.UserExists
+	if err := c.ShouldBindJSON(&req); err != nil {
+		server.Error(c, server.CodeBadRequest, fmt.Sprintf("Failed to get user stats: %v", err))
+	}
+	result, err := H.app.Queries.UserExists.Handle(c, req)
+	if err != nil {
+		logger.Infof("Failed to get user stats: %v", err)
+	}
+	server.Success(c, result)
 }
 
-func (H HTTPServer) ListUsers(c *gin.Context, params protos.ListUsersParams) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (H HTTPServer) GetUserStats(c *gin.Context) {
-	result, err := H.app.Queries.GetUserStats.Handle(c, query.GetUserStatsQuery{})
+// UserStatusAnalysis Query the number of users in all states
+func (H HTTPServer) UserStatusAnalysis(c *gin.Context) {
+	//val, ok := c.Get("session_holder_id")
+	//if !ok {
+	//	server.Error(c, server.CodeBadRequest, "session_holder_id not found in context")
+	//	return
+	//}
+	//sessionHolderID, _ := val.(int64)
+	result, err := H.app.Queries.UserStatusAnalysis.Handle(c, query.GetUserStatsQuery{})
 	if err != nil {
 		server.Error(c, server.CodeServerError, fmt.Sprintf("Failed to get user stats: %v", err))
 		return
@@ -51,30 +91,10 @@ func (H HTTPServer) GetUserStats(c *gin.Context) {
 
 func (H HTTPServer) SoftDeleteUser(c *gin.Context, id int64) {
 	_, err := H.app.Commands.SoftDeleteUser.Handle(c, command.SoftDeleteUserCommand{
-		ID: id,
+		Id: id,
 	})
 	if err != nil {
 		server.Error(c, server.CodeServerError, fmt.Sprintf("Failed to soft delete user: %v", err))
-		return
-	}
-	server.Success(c, true)
-}
-
-func (H HTTPServer) UpdateUserStatus(c *gin.Context, id int64) {
-	var req struct {
-		Status int8 `json:"status" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		server.Error(c, server.CodeBadRequest, fmt.Sprintf("Invalid request body: %v", err))
-		return
-	}
-
-	_, err := H.app.Commands.UpdateUserStatus.Handle(c, command.UpdateUserStatusCommand{
-		ID:     id,
-		Status: req.Status,
-	})
-	if err != nil {
-		server.Error(c, server.CodeServerError, fmt.Sprintf("Failed to update user status: %v", err))
 		return
 	}
 	server.Success(c, true)
@@ -88,36 +108,28 @@ func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
 	}
 	sessionHolderID, _ := val.(int64)
 
-	var req command.UpdateUserProfileRequest
+	// bind to domain object
+	var req domain.User
 	if err := c.ShouldBindJSON(&req); err != nil {
 		server.Error(c, server.CodeBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
-
+	// setting holder Id to updated
+	req.Id = sessionHolderID
+	// just have email and id in req now
 	_, err := H.app.Commands.UpdateUser.Handle(c, command.UpdateUserCommand{
-		UserID: sessionHolderID,
-		UpdateFun: func(u *domain.User) error {
-			if req.Username != "" {
-				u.Username = req.Username
+		User: &req, // from db by request context get user id to query a user domain
+		UpdateFun: func(ctx context.Context, u *domain.User) (*domain.User, error) {
+			u.UpdateTime = time.Now()
+			if &req != nil {
+				if req.Email != "" {
+					u.Email = req.Email
+				}
 			}
-			if req.Email != "" {
-				u.Email = req.Email
-			}
-			return u.Validate()
+			return u, nil
 		},
 	})
-	if err != nil {
-		server.Error(c, server.CodeServerError, fmt.Sprintf("Failed to update current user: %v", err))
-		return
-	}
-	server.Success(c, true)
-}
 
-func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
-	_, err := H.app.Commands.UpdateUser.Handle(c, command.UpdateUserCommand{
-		User:      nil, // from db by request context get user id to query a user domain
-		UpdateFun: nil,
-	})
 	if err != nil {
 		server.Error(c, server.CodeServerError, "Failed")
 		return

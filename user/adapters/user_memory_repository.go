@@ -8,12 +8,21 @@ import (
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 	"github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
 type MemoryUserRepository struct {
 	lock  *sync.RWMutex
 	store []*domain.User
+}
+
+func (m *MemoryUserRepository) ExistsWithTransaction(ctx context.Context, id int64, loginId string, email string) (bool, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MemoryUserRepository) Disable(ctx context.Context, userId int64) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func NewMemoryUserRepository() *MemoryUserRepository {
@@ -118,16 +127,6 @@ func (m MemoryUserRepository) UpdateStatus(ctx context.Context, userId int64, st
 }
 
 func (m MemoryUserRepository) SoftDelete(ctx context.Context, userId int64) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (m MemoryUserRepository) List(ctx context.Context, page, pageSize int, filters map[string]interface{}) ([]*domain.User, int64, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (m MemoryUserRepository) ExistsWithTransaction(tx *gorm.DB, userId int64) (bool, error) {
 	//TODO implement me
 	panic("implement me")
 }

@@ -168,7 +168,7 @@ components:
       type: object
       description: Request body for batch creating users
       properties:
-        users:
+        items:
           type: array
           description: List of users to create
           items:
@@ -176,21 +176,7 @@ components:
           minItems: 1
           maxItems: 100
       required:
-        - users
-
-    UpdateStatusRequest:
-      type: object
-      description: Request body for updating user status
-      properties:
-        status:
-          type: integer
-          description: >
-            Account status code.
-            0 = disabled, 1 = active
-          enum: [0, 1]
-          example: 1
-      required:
-        - status
+        - items
 
     # ---------------------------------------------------------------------------
     # Response Schemas
@@ -274,6 +260,11 @@ components:
                   type: integer
                   format: int64
                   description: Number of disabled users
+                  example: 300
+                deletedUsers:
+                  type: integer
+                  format: int64
+                  description: Number of deleted users
                   example: 300
               required:
                 - totalUsers
@@ -669,98 +660,6 @@ paths:
                 message: "Internal server error"
 
   # ===========================================================================
-  # /list - List users
-  # ===========================================================================
-  /list:
-    # -------------------------------------------------------------------------
-    # List - List users with pagination
-    # -------------------------------------------------------------------------
-    get:
-      summary: List users
-      description: >
-        Retrieves a paginated list of users. Supports filtering by status
-        and keyword search on loginId or email.
-      operationId: listUsers
-      tags:
-        - User
-      parameters:
-        - name: page
-          in: query
-          required: false
-          description: Page number (starting from 1)
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-            example: 1
-        - name: pageSize
-          in: query
-          required: false
-          description: Number of records per page
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 10
-            example: 10
-        - name: status
-          in: query
-          required: false
-          description: Filter by account status (0 = disabled, 1 = active)
-          schema:
-            type: integer
-            enum: [0, 1]
-            example: 1
-        - name: keyword
-          in: query
-          required: false
-          description: Search keyword for loginId or email
-          schema:
-            type: string
-            example: "john"
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: User list retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserListResponse'
-              example:
-                code: 0
-                message: "success"
-                data:
-                  total: 50
-                  page: 1
-                  pageSize: 10
-                  list:
-                    - id: 113453443
-                      loginId: "johndoe"
-                      email: "johndoe@example.com"
-                      status: 1
-                      create_time: "2024-01-15T08:30:00Z"
-                      update_time: "2024-01-15T08:30:00Z"
-        '401':
-          description: Unauthorized.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: 401
-                message: "Authentication token is missing or invalid"
-        '500':
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: 500
-                message: "Internal server error"
-
-  # ===========================================================================
   # /batch - Batch operations
   # ===========================================================================
   /batch:
@@ -913,7 +812,7 @@ paths:
       description: >
         Retrieves aggregate statistics about users, including total count,
         active count, and disabled count.
-      operationId: getUserStats
+      operationId: userStatusAnalysis
       tags:
         - User
       security:
@@ -952,18 +851,17 @@ paths:
                 message: "Internal server error"
 
   # ===========================================================================
-  # /{id}/status - User status management
+  # /{id}/disable - Disable User by id
   # ===========================================================================
-  /{id}/status:
+  /{id}/disable:
     # -------------------------------------------------------------------------
     # UpdateStatus - Update user status
     # -------------------------------------------------------------------------
     put:
-      summary: Update user status
+      summary: Disable User by id
       description: >
-        Update the status of a specific user (enable or disable).
-        The user is identified by their unique ID.
-      operationId: updateUserStatus
+        Disable User by id
+      operationId: disable
       tags:
         - User
       parameters:
@@ -978,12 +876,6 @@ paths:
             example: 113453443
       security:
         - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateStatusRequest'
       responses:
         '200':
           description: User status updated successfully

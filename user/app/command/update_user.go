@@ -13,6 +13,17 @@ type UpdateUserCommand struct {
 	UpdateFun func(context.Context, *domain.User) (*domain.User, error)
 }
 
+func (u UpdateUserCommand) Validate() error {
+	if u.User == nil {
+		return decorator.CommandExecutedError{Msg: "The UpdateUserCommand command failed to Execute, because User is Nil"}
+	}
+
+	if u.UpdateFun == nil {
+		return decorator.CommandExecutedError{Msg: "The UpdateUserCommand command failed to Execute, because UpdateFun is Nil"}
+	}
+	return nil
+}
+
 type UpdateUserCommandHandler decorator.CommandHandler[UpdateUserCommand, struct{}]
 
 type updateUserCommandHandler struct {
@@ -34,8 +45,8 @@ func NewUpdateUserCommandHandler(
 }
 
 func (u updateUserCommandHandler) Handle(ctx context.Context, cmd UpdateUserCommand) (struct{}, error) {
-	if cmd.UpdateFun == nil {
-		return struct{}{}, decorator.CommandExecutedError{Msg: "The UpdateUserCommand command failed to Execute, because UpdateFun is Nil"}
+	if err := cmd.Validate(); err != nil {
+		return struct{}{}, err
 	}
 	err := u.userRepo.Update(ctx, cmd.User, cmd.UpdateFun)
 	if err != nil {

@@ -84,3 +84,5 @@ go.sum.backup
 
 # Air file
 */.air.toml
+
+/doc/*.md

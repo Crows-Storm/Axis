@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	time "time"
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
@@ -23,13 +22,13 @@ type HTTPServer struct {
 func (H HTTPServer) CreateUser(c *gin.Context) {
 	var req command.CreateUserCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
-		server.Error(c, server.CodeBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		server.ErrorWithCode(c, server.CodeBadRequest)
 		return
 	}
 
 	result, err := H.app.Commands.CreateUser.Handle(c, req)
 	if err != nil {
-		server.Error(c, server.CodeServerError, fmt.Sprintf("Failed to create users: %v", err))
+		server.ErrorWithCodeAndMessage(c, server.CodeBadRequest, err.Error())
 		return
 	}
 	server.Success(c, result)
@@ -40,7 +39,7 @@ func (H HTTPServer) Disable(c *gin.Context, id int64) {
 		Id: id,
 	})
 	if err != nil {
-		server.Error(c, server.CodeBadRequest, fmt.Sprintf("Failed to disable users: %v", err))
+		server.ErrorWithCode(c, server.CodeBadRequest)
 		return
 	}
 	server.Success(c, result)
@@ -49,13 +48,13 @@ func (H HTTPServer) Disable(c *gin.Context, id int64) {
 func (H HTTPServer) CreateBatchUsers(c *gin.Context) {
 	var req command.CreateBatchUserCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
-		server.Error(c, server.CodeBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		server.ErrorWithCode(c, server.CodeBadRequest)
 		return
 	}
 
 	result, err := H.app.Commands.CreateBatchUsers.Handle(c, req)
 	if err != nil {
-		server.Error(c, server.CodeServerError, fmt.Sprintf("Failed to create batch users: %v", err))
+		server.ErrorWithCode(c, server.CodeInternalServerError)
 		return
 	}
 	server.Success(c, result)
@@ -64,7 +63,7 @@ func (H HTTPServer) CreateBatchUsers(c *gin.Context) {
 func (H HTTPServer) ExistsWithTransaction(c *gin.Context, params protos.ExistsWithTransactionParams) {
 	var req query.UserExists
 	if err := c.ShouldBindJSON(&req); err != nil {
-		server.Error(c, server.CodeBadRequest, fmt.Sprintf("Failed to get user stats: %v", err))
+		server.ErrorWithCode(c, server.CodeBadRequest)
 	}
 	result, err := H.app.Queries.UserExists.Handle(c, req)
 	if err != nil {
@@ -77,13 +76,13 @@ func (H HTTPServer) ExistsWithTransaction(c *gin.Context, params protos.ExistsWi
 func (H HTTPServer) UserStatusAnalysis(c *gin.Context) {
 	//val, ok := c.Get("session_holder_id")
 	//if !ok {
-	//	server.Error(c, server.CodeBadRequest, "session_holder_id not found in context")
+	//	server.ErrorWithCode(c, server.CodeBadRequest, "session_holder_id not found in context")
 	//	return
 	//}
 	//sessionHolderID, _ := val.(int64)
 	result, err := H.app.Queries.UserStatusAnalysis.Handle(c, query.GetUserStatsQuery{})
 	if err != nil {
-		server.Error(c, server.CodeServerError, fmt.Sprintf("Failed to get user stats: %v", err))
+		server.ErrorWithCode(c, server.CodeInternalServerError)
 		return
 	}
 	server.Success(c, result)
@@ -94,7 +93,7 @@ func (H HTTPServer) SoftDeleteUser(c *gin.Context, id int64) {
 		Id: id,
 	})
 	if err != nil {
-		server.Error(c, server.CodeServerError, fmt.Sprintf("Failed to soft delete user: %v", err))
+		server.ErrorWithCode(c, server.CodeInternalServerError)
 		return
 	}
 	server.Success(c, true)
@@ -103,7 +102,7 @@ func (H HTTPServer) SoftDeleteUser(c *gin.Context, id int64) {
 func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
 	val, ok := c.Get("session_holder_id")
 	if !ok {
-		server.Error(c, server.CodeBadRequest, "session_holder_id not found in context")
+		server.ErrorWithCode(c, server.CodeBadRequest)
 		return
 	}
 	sessionHolderID, _ := val.(int64)
@@ -111,7 +110,7 @@ func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
 	// bind to domain object
 	var req domain.User
 	if err := c.ShouldBindJSON(&req); err != nil {
-		server.Error(c, server.CodeBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		server.ErrorWithCode(c, server.CodeBadRequest)
 		return
 	}
 	// setting holder Id to updated
@@ -131,7 +130,7 @@ func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
 	})
 
 	if err != nil {
-		server.Error(c, server.CodeServerError, "Failed")
+		server.ErrorWithCode(c, server.CodeInternalServerError)
 		return
 	}
 	server.Success(c, true)
@@ -143,7 +142,7 @@ func (H HTTPServer) GetCurrentUserInfo(c *gin.Context) {
 	// is current session holder id
 	val, ok := c.Get("session_holder_id")
 	if !ok {
-		c.JSON(400, gin.H{"error": "session_holder_id not found"})
+		server.ErrorWithStatusUnauthorized(c)
 		return
 	}
 	sessionHolderID, _ := val.(int64)
@@ -151,7 +150,7 @@ func (H HTTPServer) GetCurrentUserInfo(c *gin.Context) {
 		Id: sessionHolderID,
 	})
 	if err != nil {
-		server.Error(c, server.CodeServerError, "Failed")
+		server.ErrorWithCode(c, server.CodeInternalServerError)
 		return
 	}
 	server.Success(c, result)
@@ -162,7 +161,7 @@ func (H HTTPServer) GetUserInfoById(c *gin.Context, id int64) {
 		Id: id,
 	})
 	if err != nil {
-		server.Error(c, server.CodeServerError, "Failed")
+		server.ErrorWithCode(c, server.CodeInternalServerError)
 		return
 	}
 	server.Success(c, result)

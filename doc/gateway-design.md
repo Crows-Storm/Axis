@@ -141,13 +141,13 @@ Axis 项目采用微服务架构，当前包含以下服务：
 
 #### 3.2.1 请求路由（Request Routing）
 - **路径匹配**：根据 URL 路径前缀路由到对应服务
-  - `/api/v1/auth/*` → Auth Service
-  - `/api/v1/users/*` → User Service
-  - `/api/v1/wallets/*` → Wallet Service
-  - `/api/v1/audit/*` → Audit Service (内部访问)
+  - `/api/auth/*` → Auth Service
+  - `/api/users/*` → User Service
+  - `/api/wallets/*` → Wallet Service
+  - `/api/audit/*` → Audit Service (内部访问)
 
 - **版本管理**：支持 API 版本控制
-  - `/api/v1/*` → 当前稳定版本
+  - `/api/*` → 当前稳定版本
   - `/api/v2/*` → 新版本（灰度发布）
 
 #### 3.2.2 认证授权（Authentication & Authorization）
@@ -292,8 +292,8 @@ auth:
   token-expire: 7200  # 2小时（秒）
   # 白名单：无需认证的路径
   whitelist:
-    - /api/v1/auth/login
-    - /api/v1/auth/register
+    - /api/auth/login
+    - /api/auth/register
     - /api/ping
     - /api/health
     - /metrics
@@ -352,14 +352,14 @@ log:
 
 | 客户端请求路径 | 目标服务 | 后端路径 | 认证要求 |
 |--------------|---------|---------|---------|
-| `POST /api/v1/auth/login` | auth | `/api/login` | ❌ 否 |
-| `POST /api/v1/auth/logout` | auth | `/api/logout` | ✅ 是 |
-| `GET /api/v1/auth/principal` | auth | `/api/principal` | ✅ 是 |
-| `POST /api/v1/users` | user | `/api/users` | ❌ 否（注册）|
-| `GET /api/v1/users/:id` | user | `/api/users/:id` | ✅ 是 |
-| `PUT /api/v1/users/:id` | user | `/api/users/:id` | ✅ 是 |
-| `GET /api/v1/wallets` | wallet | `/api/wallets` | ✅ 是 |
-| `POST /api/v1/wallets/transfer` | wallet | `/api/transfer` | ✅ 是 |
+| `POST /api/auth/login` | auth | `/api/login` | ❌ 否 |
+| `POST /api/auth/logout` | auth | `/api/logout` | ✅ 是 |
+| `GET /api/auth/principal` | auth | `/api/principal` | ✅ 是 |
+| `POST /api/users` | user | `/api/users` | ❌ 否（注册）|
+| `GET /api/users/:id` | user | `/api/users/:id` | ✅ 是 |
+| `PUT /api/users/:id` | user | `/api/users/:id` | ✅ 是 |
+| `GET /api/wallets` | wallet | `/api/wallets` | ✅ 是 |
+| `POST /api/wallets/transfer` | wallet | `/api/transfer` | ✅ 是 |
 | `GET /api/ping` | gateway | 网关本地 | ❌ 否 |
 | `GET /api/health` | gateway | 网关本地 | ❌ 否 |
 | `GET /metrics` | gateway | 网关本地 | ❌ 否 |
@@ -393,7 +393,7 @@ func SetupRouter(proxyHandler *proxy.ProxyHandler) *gin.Engine {
     router.GET("/metrics", metricsHandler)
     
     // API v1 路由组
-    v1 := router.Group("/api/v1")
+    v1 := router.Group("/api")
     {
         // Auth 服务路由（部分需要认证）
         auth := v1.Group("/auth")
@@ -884,7 +884,7 @@ func HTTPProxy(target string) gin.HandlerFunc {
         originalDirector(req)
         
         // 移除网关路径前缀
-        req.URL.Path = strings.Replace(req.URL.Path, "/api/v1", "/api", 1)
+        req.URL.Path = strings.Replace(req.URL.Path, "/api", "/api", 1)
         
         // 注入用户信息
         req.Header.Set("X-Request-ID", req.Context().Value("request_id").(string))
@@ -1309,10 +1309,10 @@ func cacheMiddleware() gin.HandlerFunc {
 **性能测试命令**：
 ```bash
 # 使用 wrk 进行压测
-wrk -t12 -c400 -d30s http://127.0.0.1:18800/api/v1/users
+wrk -t12 -c400 -d30s http://127.0.0.1:18800/api/users
 
 # 使用 hey 进行压测
-hey -n 10000 -c 100 http://127.0.0.1:18800/api/v1/users
+hey -n 10000 -c 100 http://127.0.0.1:18800/api/users
 ```
 
 ---
@@ -1635,7 +1635,7 @@ func TestLoginFlow(t *testing.T) {
     
     // 2. 测试登录
     loginReq := `{"username":"test","password":"123456"}`
-    req := httptest.NewRequest("POST", "/api/v1/auth/login", 
+    req := httptest.NewRequest("POST", "/api/auth/login", 
         strings.NewReader(loginReq))
     w := httptest.NewRecorder()
     router.ServeHTTP(w, req)
@@ -1648,7 +1648,7 @@ func TestLoginFlow(t *testing.T) {
     token := resp["data"].(map[string]interface{})["token"].(string)
     
     // 4. 使用 Token 访问受保护资源
-    req = httptest.NewRequest("GET", "/api/v1/users/123", nil)
+    req = httptest.NewRequest("GET", "/api/users/123", nil)
     req.Header.Set("Authorization", "Bearer "+token)
     w = httptest.NewRecorder()
     router.ServeHTTP(w, req)
@@ -1666,7 +1666,7 @@ func TestLoginFlow(t *testing.T) {
 echo "=== Gateway Stress Test ==="
 
 # 1. 登录获取 Token
-TOKEN=$(curl -s -X POST http://127.0.0.1:18800/api/v1/auth/login \
+TOKEN=$(curl -s -X POST http://127.0.0.1:18800/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"test","password":"123456"}' \
   | jq -r '.data.token')
@@ -1677,13 +1677,13 @@ echo "Token: $TOKEN"
 echo "Testing QPS..."
 wrk -t12 -c400 -d30s \
   -H "Authorization: Bearer $TOKEN" \
-  http://127.0.0.1:18800/api/v1/users
+  http://127.0.0.1:18800/api/users
 
 # 3. 测试限流
 echo "Testing rate limit..."
 for i in {1..1000}; do
   curl -s -H "Authorization: Bearer $TOKEN" \
-    http://127.0.0.1:18800/api/v1/users > /dev/null
+    http://127.0.0.1:18800/api/users > /dev/null
   echo -n "."
 done
 echo ""
@@ -1840,7 +1840,7 @@ axios.post(`${authAPI}/login`, {...})
 axios.get(`${userAPI}/users/123`, {...})
 
 // 修改后：统一通过网关
-const gatewayAPI = 'http://localhost:18800/api/v1'
+const gatewayAPI = 'http://localhost:18800/api'
 
 axios.post(`${gatewayAPI}/auth/login`, {...})
 axios.get(`${gatewayAPI}/users/123`, {...})
@@ -1854,7 +1854,7 @@ axios.get(`${gatewayAPI}/users/123`, {...})
 let baseURL = "http://api.axis.com:18802"
 
 // 修改后
-let baseURL = "http://api.axis.com:18800/api/v1"
+let baseURL = "http://api.axis.com:18800/api"
 ```
 
 ### 14.3 迁移步骤

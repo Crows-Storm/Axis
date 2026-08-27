@@ -2,12 +2,52 @@ syntax = "proto3";
 
 option go_package = "github.com/Crows-Storm/Axis/common/genproto/userpb";
 import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
 
 service UserService {
   rpc CreateUser(CreateUserRequest) returns (google.protobuf.Empty);
+  // CreateAndBindIdentity Create a new user and bind their identity (register)
+  rpc CreateAndBindIdentity(CreateAndBindIdentityRequest) returns (CreateAndBindIdentityResponse);
 
   rpc GetUserById(GetUserByIdRequest) returns (GetUserByIdResponse);
   rpc GetUserByLoginId(GetUserByLoginIdRequest) returns (GetUserByLoginIdResponse);
+
+  rpc GetByUnionID(GetByUnionIDRequest) returns (GetByUnionIDResponse);
+  rpc VerifyPassword(VerifyPasswordRequest) returns (google.protobuf.BoolValue);
+}
+
+message VerifyPasswordRequest {
+  string loginId = 1;
+  string password = 2;
+}
+
+message CreateAndBindIdentityRequest {
+  string loginId = 1;
+  string password = 2;
+  string email = 3;
+  string channel = 4;
+}
+
+message CreateAndBindIdentityResponse {
+  // TODO user info filed
+  string id = 1;
+  string unionID = 2;
+  string loginId = 3;
+}
+
+message GetByUnionIDRequest {
+  string unionID = 1;
+  string channel = 2;
+}
+
+message GetByUnionIDResponse {
+  // TODO user info filed
+  string id = 1;
+  string unionID = 2;
+  string channel = 3;
+  string loginId = 4;
+  string username = 5;
+  string email = 6;
 }
 
 message CreateUserRequest {

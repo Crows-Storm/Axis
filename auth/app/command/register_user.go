@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 
+	"github.com/Crows-Storm/Axis/auth/app/provider"
 	"github.com/Crows-Storm/Axis/common/decorator"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
 	"github.com/Crows-Storm/Axis/common/server/cache"
@@ -17,22 +18,22 @@ type RegisterUserCommand struct {
 type RegisterUserCommandHandler decorator.CommandHandler[RegisterUserCommand, struct{}]
 
 func NewRegisterUserCommandHandler(
-	userGRPC UserService,
+	userService provider.UserService,
 	cacheClient cache.RueidisClient,
 	metricsClient decorator.MetricsClient,
 ) RegisterUserCommandHandler {
-	if userGRPC == nil {
-		panic("nil userGRPC")
+	if userService == nil {
+		panic("nil userService")
 	}
 	return decorator.ApplyCommandDecorators[RegisterUserCommand, struct{}](
-		registerUserCommandHandler{userGRPC: userGRPC, cacheClient: cacheClient},
+		registerUserCommandHandler{userService: userService, cacheClient: cacheClient},
 		metricsClient,
 	)
 }
 
 type registerUserCommandHandler struct {
 	cacheClient cache.RueidisClient
-	userGRPC    UserService
+	userService provider.UserService
 }
 
 func (r registerUserCommandHandler) Handle(ctx context.Context, cmd RegisterUserCommand) (struct{}, error) {
@@ -43,7 +44,7 @@ func (r registerUserCommandHandler) Handle(ctx context.Context, cmd RegisterUser
 	}
 
 	// call user grpc interface to create user
-	_, err := r.userGRPC.CreateUser(ctx, &userpb.CreateUserRequest{
+	_, err := r.userService.CreateUser(ctx, &userpb.CreateUserRequest{
 		LoginId:  cmd.LoginId,
 		Password: cmd.Password,
 		Email:    cmd.Email,

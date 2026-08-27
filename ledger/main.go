@@ -119,9 +119,12 @@ func main() {
 		protos.RegisterHandlersWithOptions(router, HTTPServer{
 			app: application,
 		}, protos.GinServerOptions{
-			BaseURL:      "/api/v1",
-			Middlewares:  nil,
-			ErrorHandler: nil,
+			BaseURL:     "/api",
+			Middlewares: nil,
+			ErrorHandler: func(c *gin.Context, err error, statusCode int) {
+				// use Framework http code, and Vague system error
+				server.ErrorWithHttpCode(c, server.CodeInternalServerError, statusCode)
+			},
 		})
 		logger.Info("HTTP routes registered successfully")
 	})

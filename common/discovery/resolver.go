@@ -92,7 +92,7 @@ func (r *consulResolver) resolve() {
 	}
 
 	if err := r.cc.UpdateState(resolver.State{Addresses: addrs}); err != nil {
-		logger.Error("update resolver state failed", "error", err)
+		logger.Error("update resolver state failed: ", "error: ", err)
 	}
 }
 

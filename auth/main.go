@@ -15,6 +15,8 @@ import (
 	"github.com/Crows-Storm/Axis/common/discovery/consulx"
 	"github.com/Crows-Storm/Axis/common/discovery/registry"
 	"github.com/Crows-Storm/Axis/common/genproto/authpb"
+	"github.com/Crows-Storm/Axis/common/jwt"
+	"github.com/Crows-Storm/Axis/common/metrics"
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/common/server/cache"
 	"github.com/Crows-Storm/Axis/common/server/store"
@@ -66,8 +68,20 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	application, cleanup := service.NewApplication(ctx, cacheClient)
-	defer cleanup()
+	// TODO: need improve
+	tokenRepository := jwt.NewTokenCacheRepository(cacheClient.W())
+	if cfg == nil || cfg.JWTConfig.AccessSecret == "" {
+		logger.Panicf("config.JWTConfig not init: cfg=%v", cfg)
+		panic("config.JWTConfig not init!!!")
+	}
+	// init jwt issuer
+	jwtConfig := cfg.JWTConfig
+	jwtIssuer := jwt.NewJWTIssuer(config.JWTConfig{
+		AccessSecret:  jwtConfig.AccessSecret,
+		RefreshSecret: jwtConfig.RefreshSecret,
+		AccessTTL:     jwtConfig.AccessTTL,
+		RefreshTTL:    jwtConfig.RefreshTTL,
+	}, tokenRepository)
 
 	// init gorm and connection to db
 	dbCfg := cfg.DbConfig
@@ -97,6 +111,17 @@ func main() {
 		}
 	}(st)
 
+	// TODO: init Metrics Client
+	metricsClient := metrics.TodoMetrics{}
+	// New Application
+	application, cleanup := service.NewApplication(ctx, service.ApplicationDependencies{
+		Store:         st,
+		CacheClient:   cacheClient,
+		Issuer:        jwtIssuer,
+		MetricsClient: metricsClient,
+	})
+	defer cleanup()
+
 	discoveryConfig := cfg.ServiceDiscoveryConfig
 	consulClient, err := consulx.NewClient(&consulx.Config{
 		Address: fmt.Sprintf("%s:%d", discoveryConfig.Host, discoveryConfig.Port),
@@ -117,12 +142,23 @@ func main() {
 	})
 
 	httpErrCh := server.RunHTTPServerWithLifecycle(ctx, cfg.GetServerAddr(), func(router *gin.Engine) {
+		middlewares := []protos.MiddlewareFunc{
+			protos.MiddlewareFunc(server.RequestIDMiddleware()),
+			protos.MiddlewareFunc(server.LoggerMiddleware()),
+			protos.MiddlewareFunc(server.AuthMiddleware(jwtIssuer)), // TODO: need improve
+			protos.MiddlewareFunc(server.RateLimitMiddleware()),
+			protos.MiddlewareFunc(server.PermissionMiddleware()),
+			protos.MiddlewareFunc(server.RequestMetadataMiddleware()), // setting headers to request context
+		}
 		protos.RegisterHandlersWithOptions(router, &HTTPServer{
 			app: application,
 		}, protos.GinServerOptions{
-			BaseURL:      "/api/v1",
-			Middlewares:  nil,
-			ErrorHandler: nil,
+			BaseURL:     "/api",
+			Middlewares: middlewares,
+			ErrorHandler: func(c *gin.Context, err error, statusCode int) {
+				// use Framework http code, and Vague system error
+				server.ErrorWithHttpCode(c, server.CodeInternalServerError, statusCode)
+			},
 		})
 		logger.Info("HTTP routes registered successfully")
 	})
@@ -134,6 +170,9 @@ func main() {
 			authpb.RegisterAuthServiceServer(server, authServiceServer)
 		},
 		registrar,
+		// Restore the principal propagated by upstream services
+		// so business handlers can read it via principal.FromContext(ctx).
+		server.WithGRPCAuthParser(jwtIssuer),
 	)
 
 	logger.Info("Service is ready 🚀")

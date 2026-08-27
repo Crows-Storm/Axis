@@ -4,22 +4,22 @@ import (
 	"context"
 	"sync"
 
-	domain "github.com/Crows-Storm/Axis/auth/domain/principal"
+	"github.com/Crows-Storm/Axis/common/domain/principal"
 )
 
 type MemoryAuthRepository struct {
 	lock  *sync.RWMutex
-	store []*domain.Principal
+	store []*principal.Principal
 }
 
 func NewMemoryAuthRepository() *MemoryAuthRepository {
 	return &MemoryAuthRepository{
 		lock:  &sync.RWMutex{},
-		store: make([]*domain.Principal, 0),
+		store: make([]*principal.Principal, 0),
 	}
 }
 
-func (a MemoryAuthRepository) GetPrincipal(ctx context.Context, token string) (*domain.Principal, error) {
+func (a MemoryAuthRepository) GetPrincipal(ctx context.Context, token string) (*principal.Principal, error) {
 	//TODO implement me
 	panic("implement me")
 }

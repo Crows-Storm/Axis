@@ -10,11 +10,12 @@ import (
 
 const insecureDefaultJWTSecret = "default-jwt-secret-change-in-production"
 
-const minJWTSecretLength = 32
-
 var global *Config
 
 func Get() *Config {
+	if global == nil {
+		Init()
+	}
 	return global
 }
 
@@ -34,13 +35,21 @@ type Config struct {
 	ServerHost               string
 	LogLevel                 string
 	RestPort                 int
-	JWTSecret                string
 	GRPCPort                 int
+	JWTConfig                JWTConfig
 	ServiceDiscoveryConfig   ConsulConfig
 	DbConfig                 DBConfig
 	RedisHealthCheckInterval int
 	ReadRedis                ReadRedisConfig
 	WriteRedis               WriteRedisConfig
+}
+
+// JWTConfig will from ENV Config
+type JWTConfig struct {
+	AccessSecret  string
+	RefreshSecret string
+	AccessTTL     time.Duration // default 2h is 7200s
+	RefreshTTL    time.Duration // default 7d is 604800s
 }
 
 type ConsulConfig struct {
@@ -96,7 +105,7 @@ func initConfig() error {
 		ServerHost:               getEnvAsString("SERVER_HOST", "localhost"),
 		LogLevel:                 getEnvAsString("LOG_LEVEL", "info"),
 		RestPort:                 getEnvAsInt("REST_PORT", 0),
-		JWTSecret:                getEnvAsString("JWT_SECRET", insecureDefaultJWTSecret),
+		JWTConfig:                getJWTConfit(),
 		ServiceDiscoveryConfig:   getServiceDiscoveryConfig(),
 		GRPCPort:                 getEnvAsInt("GRPC_PORT", 0),
 		DbConfig:                 getDBConfig(),
@@ -105,8 +114,17 @@ func initConfig() error {
 		WriteRedis:               getWriteRedis(),
 	}
 	global = cfg
-
 	return nil
+}
+
+// getJWTConfit just can use in AUTH service
+func getJWTConfit() JWTConfig {
+	return JWTConfig{
+		AccessSecret:  getEnvAsString("JWT_SECRET", insecureDefaultJWTSecret),
+		RefreshSecret: getEnvAsString("JWT_REFRESH_SECRET", insecureDefaultJWTSecret),
+		AccessTTL:     time.Duration(getEnvAsInt("JWT_ACCESS_TTL", 7200)) * time.Second,           // default 2h
+		RefreshTTL:    time.Duration(getEnvAsInt("JWT_REFRESH_ACCESS_TTL", 604800)) * time.Second, // default 7d
+	}
 }
 
 func getServiceDiscoveryConfig() ConsulConfig {

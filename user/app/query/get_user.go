@@ -8,7 +8,8 @@ import (
 )
 
 type GetUserQuery struct {
-	Id int64
+	Id      int64
+	LoginId string
 }
 
 type GetUserQueryHandler decorator.QueryHandler[GetUserQuery, *domain.User]
@@ -31,7 +32,13 @@ func NewGetUserQueryHandler(
 }
 
 func (g getUserQueryHandler) Handle(ctx context.Context, query GetUserQuery) (*domain.User, error) {
-	info, err := g.userRepo.GetInfo(query.Id)
+	var info *domain.User
+	var err error
+	if query.LoginId != "" {
+		info, err = g.userRepo.GetByLoginId(ctx, query.LoginId)
+	} else if query.Id > 0 {
+		info, err = g.userRepo.GetInfo(query.Id)
+	}
 	if err != nil {
 		return nil, err
 	}

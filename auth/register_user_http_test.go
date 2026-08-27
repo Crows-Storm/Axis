@@ -42,7 +42,7 @@ func setupTestRouter(mockHandler *MockRegisterUserHandler) *gin.Engine {
 	httpServer := HTTPServer{app: application}
 
 	// Register the route
-	router.POST("/api/v1/register", httpServer.Register)
+	router.POST("/api/register", httpServer.Register)
 
 	return router
 }
@@ -62,7 +62,7 @@ func TestRegister_Success(t *testing.T) {
 	mockHandler.On("Handle", mock.Anything, requestBody).Return(struct{}{}, nil)
 
 	body, _ := json.Marshal(requestBody)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/register", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -86,7 +86,7 @@ func TestRegister_InvalidJSON(t *testing.T) {
 	router := setupTestRouter(mockHandler)
 
 	invalidJSON := `{"loginId": "testuser", "password": "Test@1234", "email": }`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/register", bytes.NewBufferString(invalidJSON))
+	req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBufferString(invalidJSON))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -142,7 +142,7 @@ func TestRegister_MissingRequiredFields(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			body, _ := json.Marshal(tc.requestBody)
-			req := httptest.NewRequest(http.MethodPost, "/api/v1/register", bytes.NewBuffer(body))
+			req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
@@ -160,7 +160,7 @@ func TestRegister_EmptyBody(t *testing.T) {
 	mockHandler := new(MockRegisterUserHandler)
 	router := setupTestRouter(mockHandler)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/register", bytes.NewBuffer([]byte{}))
+	req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBuffer([]byte{}))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -189,7 +189,7 @@ func TestRegister_HandlerError(t *testing.T) {
 	mockHandler.On("Handle", mock.Anything, requestBody).Return(struct{}{}, expectedError)
 
 	body, _ := json.Marshal(requestBody)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/register", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -197,7 +197,7 @@ func TestRegister_HandlerError(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(t, http.StatusOK, w.Code) // server.Error 返回 200 (需要改进)
+	assert.Equal(t, http.StatusOK, w.Code) // server.ErrorWithCode 返回 200 (需要改进)
 
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
@@ -220,7 +220,7 @@ func TestRegister_WrongContentType(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(requestBody)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/register", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "text/plain") // 错误的 Content-Type
 	w := httptest.NewRecorder()
 
@@ -253,7 +253,7 @@ func TestRegister_LargePayload(t *testing.T) {
 	mockHandler.On("Handle", mock.Anything, requestBody).Return(struct{}{}, nil)
 
 	body, _ := json.Marshal(requestBody)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/register", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -283,7 +283,7 @@ func TestRegister_ConcurrentRequests(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func() {
 			body, _ := json.Marshal(requestBody)
-			req := httptest.NewRequest(http.MethodPost, "/api/v1/register", bytes.NewBuffer(body))
+			req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
@@ -320,7 +320,7 @@ func BenchmarkRegister_Success(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/register", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)

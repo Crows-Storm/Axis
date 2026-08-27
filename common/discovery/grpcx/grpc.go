@@ -3,6 +3,7 @@ package grpcx
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -115,27 +116,45 @@ func DialService(serviceName string) (*grpc.ClientConn, error) {
 	return v.(*grpc.ClientConn), nil
 }
 
-// metadataPropagationInterceptor Automatically transmit the metadata from upstream to downstream.
+// metadataPropagationInterceptor Automatically transmits metadata from upstream to downstream.
+//
+// It handles two propagation sources and merges them into the outgoing context:
+//  1. Outbound metadata attached by HTTP middleware via WithOutgoingMetadata
+//     (bridges HTTP request headers into the gRPC call — the primary path when
+//     this service is the HTTP entry point).
+//  2. Incoming metadata from an upstream gRPC call (for gRPC→gRPC chains).
+//
+// Only keys in allowedPropagationKeys are forwarded, and all keys are
+// normalized to lowercase (gRPC metadata keys are lowercase on the wire).
 func metadataPropagationInterceptor() grpc.UnaryClientInterceptor {
-	allowedKeys := map[string]bool{
-		"trace-id":     true,
-		"auth-token":   true,
-		"x-request-id": true,
-	}
-
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		outMD := make(metadata.MD)
+
+		// Source: metadata bridged from HTTP middleware
+		if md, ok := OutgoingMetadataFromContext(ctx); ok {
+			appendAllowed(outMD, md)
+		}
+
+		// Source: metadata from upstream gRPC call
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
-			outMD := make(metadata.MD, len(md))
-			for k, vals := range md {
-				if allowedKeys[k] {
-					outMD[k] = append([]string(nil), vals...) // Deep copy prevents sharing of underlying arrays
-				}
-			}
-			if len(outMD) > 0 {
-				ctx = metadata.NewOutgoingContext(ctx, outMD)
-			}
+			appendAllowed(outMD, md)
+		}
+
+		if len(outMD) > 0 {
+			ctx = metadata.NewOutgoingContext(ctx, outMD)
 		}
 		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+// appendAllowed copies only allow-listed keys from src into dst, normalizing keys to lowercase.
+func appendAllowed(dst, src metadata.MD) {
+	for k, vals := range src {
+		lower := strings.ToLower(k)
+		if !allowedPropagationKeys[lower] {
+			continue
+		}
+		dst[lower] = append(dst[lower], append([]string(nil), vals...)...)
 	}
 }
 

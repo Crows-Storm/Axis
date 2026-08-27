@@ -300,6 +300,14 @@ func (u *UserMariaRepository) SoftDelete(ctx context.Context, userId int64) erro
 	return nil
 }
 
+func (u *UserMariaRepository) GetPasswordByLoginId(ctx context.Context, loginId string) string {
+	user, err := u.GetByLoginId(ctx, loginId)
+	if err != nil {
+		return ""
+	}
+	return user.Password
+}
+
 //func (u *UserMariaRepository) Page(ctx context.Context, args pagination.Args) (*pagination.Connection[*domain.User], error) {
 //	connection, err := pagination.FetchConnection[UserModel](u.store.DB(), u.store.DB().WithContext(ctx).Model(&UserModel{}), pagination.DefaultConfig(), args)
 //	if err != nil {

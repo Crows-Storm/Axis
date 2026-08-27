@@ -22,4 +22,5 @@ type Queries struct {
 	GetUser            query.GetUserQueryHandler
 	UserExists         query.UserExistsHandler
 	UserStatusAnalysis query.UserStatusAnalysisHandler
+	VerifyLogin        query.VerifyLoginHandler
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Crows-Storm/Axis/common/decorator"
+	"github.com/Crows-Storm/Axis/common/jwt"
 	"github.com/Crows-Storm/Axis/common/metrics"
 	"github.com/Crows-Storm/Axis/common/server/cache"
 	"github.com/Crows-Storm/Axis/common/server/store"
@@ -18,6 +19,7 @@ import (
 type ApplicationDependencies struct {
 	Store       *store.Store
 	CacheClient cache.RueidisClient
+	Issuer      jwt.TokenIssuer
 }
 
 // NewApplication Create a new Application Instance
@@ -60,6 +62,7 @@ func newApplication(
 			GetUser:            query.NewGetUserQueryHandler(userRepo, metricsClient),
 			UserExists:         query.NewUserExistsHandler(userRepo, metricsClient),
 			UserStatusAnalysis: query.NewUserStatusAnalysisHandler(userRepo, metricsClient),
+			VerifyLogin:        query.NewVerifyLoginHandler(userRepo, metricsClient),
 		},
 	}
 }

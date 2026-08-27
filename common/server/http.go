@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -10,18 +11,17 @@ import (
 )
 
 // RunHTTPServerWithLifecycle starts the HTTP server and supports graceful shutdown
-// ctx: The context used to receive shutdown signals
-// addr: The listening address, e.g., ":8080"
-// wrapper: Callback functions used to register routes
-// Returns an error channel, allowing the caller to listen for startup errors
 func RunHTTPServerWithLifecycle(ctx context.Context, addr string, wrapper func(router *gin.Engine)) chan error {
 	apiRouter := gin.New()
 
-	apiRouter.Any("/api/v1/ping", func(c *gin.Context) {
-		Success(c, "pong")
-	})
+	apiRouter.Use(gin.Recovery())
+	apiRouter.Use(RequestIDMiddleware())
 
 	wrapper(apiRouter)
+
+	apiRouter.Any("/api/ping", func(c *gin.Context) {
+		Success(c, "pong")
+	})
 
 	httpServer := &http.Server{
 		Addr:         addr,
@@ -35,7 +35,7 @@ func RunHTTPServerWithLifecycle(ctx context.Context, addr string, wrapper func(r
 
 	go func() {
 		logger.Info("HTTP server started", "addr", addr)
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("HTTP server error", "error", err)
 			errCh <- err
 		}

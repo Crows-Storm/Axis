@@ -13,6 +13,7 @@ import (
 	"github.com/Crows-Storm/Axis/common/discovery/consulx"
 	"github.com/Crows-Storm/Axis/common/discovery/registry"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
+	"github.com/Crows-Storm/Axis/common/jwt"
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/common/server/cache"
 	"github.com/Crows-Storm/Axis/common/server/store"
@@ -93,10 +94,24 @@ func main() {
 		}
 	}(st)
 
-	// 创建 Application（依赖注入）
+	// TODO: need improve
+	tokenRepository := jwt.NewTokenCacheRepository(cacheClient.W())
+	if cfg == nil || cfg.JWTConfig.AccessSecret == "" {
+		logger.Panicf("config.JWTConfig not init: cfg=%v", cfg)
+		panic("config.JWTConfig not init!!!")
+	}
+	// init jwt issuer
+	jwtConfig := cfg.JWTConfig
+	tokenIssuer := jwt.NewJWTIssuer(config.JWTConfig{
+		AccessSecret:  jwtConfig.AccessSecret,
+		RefreshSecret: jwtConfig.RefreshSecret,
+		AccessTTL:     jwtConfig.AccessTTL,
+		RefreshTTL:    jwtConfig.RefreshTTL,
+	}, tokenRepository)
 	application, cleanup := service.NewApplication(ctx, service.ApplicationDependencies{
 		Store:       st,
 		CacheClient: cacheClient,
+		Issuer:      tokenIssuer,
 	})
 	defer cleanup()
 
@@ -111,21 +126,33 @@ func main() {
 		os.Exit(1)
 	}
 
-	// register self to consul
+	// register self to consul, This instanceId is A unique identifier for a service instance, used for service auditing/monitoring.
+	instanceId := fmt.Sprintf("%s-%s-%d", serviceName, cfg.ServerHost, cfg.GRPCPort)
 	registrar := registry.NewRegistrar(consulClient, registry.ServiceInfo{
 		Name: serviceName,
-		ID:   fmt.Sprintf("%s-%s-%d", serviceName, cfg.ServerHost, cfg.GRPCPort),
+		ID:   instanceId,
 		Host: cfg.ServerHost,
 		Port: cfg.GRPCPort,
 	})
 
 	httpErrCh := server.RunHTTPServerWithLifecycle(ctx, cfg.GetServerAddr(), func(router *gin.Engine) {
+		middlewares := []protos.MiddlewareFunc{
+			protos.MiddlewareFunc(server.RequestIDMiddleware()),
+			protos.MiddlewareFunc(server.LoggerMiddleware()),
+			protos.MiddlewareFunc(server.AuthMiddleware(tokenIssuer)),
+			protos.MiddlewareFunc(server.RateLimitMiddleware()),
+			protos.MiddlewareFunc(server.PermissionMiddleware()),
+		}
+
 		protos.RegisterHandlersWithOptions(router, HTTPServer{
 			app: application,
 		}, protos.GinServerOptions{
-			BaseURL:      "/api/v1",
-			Middlewares:  nil,
-			ErrorHandler: nil,
+			BaseURL:     "/api",
+			Middlewares: middlewares,
+			ErrorHandler: func(c *gin.Context, err error, statusCode int) {
+				logger.Error("API error", "path", c.FullPath(), "error", err, "status", statusCode)
+				server.AbortWithStatus(c, server.CodeInternalServerError, statusCode)
+			},
 		})
 		logger.Info("HTTP routes registered successfully")
 	})
@@ -137,6 +164,9 @@ func main() {
 			userpb.RegisterUserServiceServer(server, userServiceServer)
 		},
 		registrar,
+		// Restore the principal propagated by upstream services (e.g. auth)
+		// so business handlers can read it via principal.FromContext(ctx).
+		server.WithGRPCAuthParser(tokenIssuer),
 	)
 
 	logger.Info("Service is ready 🚀")

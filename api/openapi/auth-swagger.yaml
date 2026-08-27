@@ -5,7 +5,7 @@ info:
   version: 1.0.0
 
 servers:
-  - url: http://localhost:18082/api/v1
+  - url: http://localhost:18082/api
     description: Local development server
 
 # =============================================================================

@@ -1,0 +1,103 @@
+name: PR Preview Environment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+env:
+  VCLUSTER_NAME: pr-${{ github.event.number }}
+  NAMESPACE: pr-${{ github.event.number }}
+
+jobs:
+  # ==================== 创建/更新 PR 临时环境 ====================
+  preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure K8s Context
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      # ==================== 创建 vCluster ====================
+      - name: Create vCluster
+        run: |
+          # 创建虚拟集群 (秒级完成!)
+          vcluster create ${{ env.VCLUSTER_NAME }} \
+            --namespace ${{ env.NAMESPACE }} \
+            --connect=false
+
+          # 获取 vCluster kubeconfig
+          vcluster connect ${{ env.VCLUSTER_NAME }} \
+            --namespace ${{ env.NAMESPACE }} \
+            --update-current=false \
+            --print > /tmp/vcluster-kubeconfig.yaml
+
+      # ==================== 构建并部署到 vCluster ====================
+      - name: Build & Deploy to Preview
+        env:
+          KUBECONFIG: /tmp/vcluster-kubeconfig.yaml
+        run: |
+          # 构建镜像 (使用 Dagger)
+          TAG="pr-${{ github.event.number }}-$(echo $GITHUB_SHA | head -c7)"
+
+          dagger call build-native \
+            --source=. \
+            --tag=$TAG \
+            --export=image.tar
+
+          # 加载镜像到 vCluster
+          docker load < image.tar
+          docker tag Axis:$TAG localhost:30000/Axis:$TAG
+          docker push localhost:30000/Axis:$TAG
+
+          # 部署到 vCluster
+          kubectl create namespace preview --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -f deploy/base/ -n preview
+
+          # 更新镜像
+          kubectl set image deployment/Axis \
+            app=localhost:30000/Axis:$TAG -n preview
+
+      # ==================== 获取访问 URL 并评论到 PR ====================
+      - name: Comment PR with Preview URL
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-env
+          message: |
+            ## 🚀 PR 预览环境已就绪
+
+            | 项目 | 值 |
+            |------|-----|
+            | **vCluster** | `${{ env.VCLUSTER_NAME }}` |
+            | **Namespace** | `${{ env.NAMESPACE }}` |
+            | **Access Address** | `https://pr-${{ github.event.number }}.preview.yourdomain.com` |
+            | **Commit** | `${{ github.sha }}` |
+
+            > 💡 This environment will be automatically destroyed after the PR is closed.
+
+  # ==================== 清理: PR 关闭时销毁环境 ====================
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure K8s Context
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Destroy vCluster
+        run: |
+          vcluster delete ${{ env.VCLUSTER_NAME }} \
+            --namespace ${{ env.NAMESPACE }}
+          kubectl delete namespace ${{ env.NAMESPACE }} --ignore-not-found

@@ -1,15 +1,11 @@
 package main
 
 import (
-	"context"
-	time "time"
-
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/user/app"
 	"github.com/Crows-Storm/Axis/user/app/command"
 	"github.com/Crows-Storm/Axis/user/app/query"
-	domain "github.com/Crows-Storm/Axis/user/domain/user"
 	"github.com/Crows-Storm/Axis/user/protos"
 	"github.com/gin-gonic/gin"
 )
@@ -90,7 +86,7 @@ func (H HTTPServer) UserStatusAnalysis(c *gin.Context) {
 
 func (H HTTPServer) SoftDeleteUser(c *gin.Context, id int64) {
 	_, err := H.app.Commands.SoftDeleteUser.Handle(c, command.SoftDeleteUserCommand{
-		Id: id,
+		ID: id,
 	})
 	if err != nil {
 		server.ErrorWithCode(c, server.CodeInternalServerError)
@@ -108,26 +104,15 @@ func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
 	sessionHolderID, _ := val.(int64)
 
 	// bind to domain object
-	var req domain.User
+	var req command.UpdateUserCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
 		server.ErrorWithCode(c, server.CodeBadRequest)
 		return
 	}
 	// setting holder Id to updated
-	req.Id = sessionHolderID
+	req.ID = sessionHolderID
 	// just have email and id in req now
-	_, err := H.app.Commands.UpdateUser.Handle(c, command.UpdateUserCommand{
-		User: &req, // from db by request context get user id to query a user domain
-		UpdateFun: func(ctx context.Context, u *domain.User) (*domain.User, error) {
-			u.UpdateTime = time.Now()
-			if &req != nil {
-				if req.Email != "" {
-					u.Email = req.Email
-				}
-			}
-			return u, nil
-		},
-	})
+	_, err := H.app.Commands.UpdateUser.Handle(c, &req)
 
 	if err != nil {
 		server.ErrorWithCode(c, server.CodeInternalServerError)

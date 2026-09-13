@@ -52,14 +52,14 @@ type AuthClaims struct {
 	jwt.RegisteredClaims
 
 	Token    string          `json:"token"` // jwt token
-	UserId   int64           `json:"userId"`
+	UserId   int64           `json:"user_id"`
 	Username string          `json:"username"`
-	LoginId  string          `json:"loginId"`
+	LoginId  string          `json:"login_id"`
 	Email    string          `json:"email"`
 	Status   int8            `json:"status"`
 	Role     domain.HoldRole `json:"role"` // a user just can hold a role
 	//Permissions map[string]struct{} `json:"permissions"` // Permission identifier set (O(1) lookup)
-	AuthChannel string            `json:"authChannel"` // password/sms_code/email_code/oauth/qrcode
+	AuthChannel string            `json:"auth_channel"` // password/sms_code/email_code/oauth/qrcode
 	Extra       map[string]string `json:"extra"`
 }
 
@@ -125,7 +125,8 @@ func (j *JWTIssuer) Issue(ctx context.Context, principal *domain.Principal) (*To
 
 // ---- Refresh ----
 
-func (j *JWTIssuer) Refresh(ctx context.Context, refreshToken string) (*TokenPayload, error) {
+// The Refresh a token by new Principal
+func (j *JWTIssuer) Refresh(ctx context.Context, refreshToken string, p *domain.Principal) (*TokenPayload, error) {
 	claims := &jwt.RegisteredClaims{}
 	token, err := jwt.ParseWithClaims(refreshToken, claims, func(t *jwt.Token) (interface{}, error) {
 		return j.refreshSecret, nil
@@ -138,13 +139,18 @@ func (j *JWTIssuer) Refresh(ctx context.Context, refreshToken string) (*TokenPay
 	if err != nil {
 		return nil, errors.New("refresh token has been revoked")
 	}
+	if userID != p.UserId {
+		return nil, errors.New("invalid or expired refresh token")
+	}
 
 	_ = j.tokenRepository.RevokeRefreshToken(ctx, claims.ID)
 
-	// TODO reload Principal to issue new Token (UserProvider needs to be injected externally here to simplify processing)
-	// In actual production, the latest permissions should be reloaded from DB
-	_ = userID
-	return nil, errors.New("refresh requires UserProvider injection — see production note")
+	// reissue new token payload
+	newP, err := j.Issue(ctx, p)
+	if err != nil {
+		return nil, fmt.Errorf("refresh token failed to issue: %v", err)
+	}
+	return newP, nil
 }
 
 // Revoke

@@ -23,7 +23,7 @@ func NewGRPCServer(app app.Application) *GRPCServer {
 
 func (G GRPCServer) CreateUser(ctx context.Context, request *userpb.CreateUserRequest) (*emptypb.Empty, error) {
 	_, err := G.app.Commands.CreateUser.Handle(ctx, command.CreateUserCommand{
-		LoginId:  request.LoginId,
+		LoginID:  request.LoginId,
 		Password: request.Password,
 		Email:    request.Email,
 	})
@@ -45,10 +45,9 @@ func (G GRPCServer) GetUserById(ctx context.Context, request *userpb.GetUserById
 	//fmt.Print(p)
 
 	return &userpb.GetUserByIdResponse{
-		Id:      result.Id,
+		Id:      result.ID(),
 		LoginId: result.LoginId,
 		Email:   result.Email,
-		Status:  int32(result.Status),
 	}, nil
 }
 
@@ -61,10 +60,8 @@ func (G GRPCServer) GetUserByLoginId(ctx context.Context, request *userpb.GetUse
 		return nil, err
 	}
 	return &userpb.GetUserByLoginIdResponse{
-		Id:      result.Id,
+		Id:      result.ID(),
 		LoginId: result.LoginId,
-		Email:   result.Email,
-		Status:  int32(result.Status),
 	}, nil
 }
 

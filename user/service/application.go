@@ -30,7 +30,11 @@ func NewApplication(
 	userRepo := createUserRepository(deps.Store)
 	metricsClient := metrics.TodoMetrics{}
 
-	application := newApplication(ctx, userRepo, deps.CacheClient, metricsClient)
+	// New a DomainService implement
+	// There are currently no services that require the use of domain services
+	// domainService := domain.NewUserDomainServiceImpl()
+
+	application := newApplication(ctx, userRepo, deps.CacheClient, deps.Issuer, metricsClient)
 
 	cleanup := func() {
 		// some close func
@@ -49,15 +53,18 @@ func newApplication(
 	_ context.Context,
 	userRepo domain.Repository,
 	_ cache.RueidisClient,
+	jwt jwt.TokenIssuer,
 	metricsClient decorator.MetricsClient,
 ) app.Application {
 	return app.Application{
+		// about domain all command use domain service
 		Commands: app.Commands{
 			CreateUser:     command.NewCreateUserCommandHandler(userRepo, metricsClient),
 			UpdateUser:     command.NewUpdateUserCommandHandler(userRepo, metricsClient),
-			SoftDeleteUser: command.NewSoftDeleteUserCommandHandler(userRepo, metricsClient),
-			DisableUser:    command.NewDisableUserCommandHandler(userRepo, metricsClient),
+			SoftDeleteUser: command.NewSoftDeleteUserCommandHandler(userRepo, metricsClient, jwt),
+			DisableUser:    command.NewDisableUserCommandHandler(userRepo, metricsClient, jwt),
 		},
+		// Queries use UserRepository to query db read model
 		Queries: app.Queries{
 			GetUser:            query.NewGetUserQueryHandler(userRepo, metricsClient),
 			UserExists:         query.NewUserExistsHandler(userRepo, metricsClient),

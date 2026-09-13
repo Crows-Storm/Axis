@@ -3,10 +3,8 @@ package command
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/Crows-Storm/Axis/common/decorator"
-	"github.com/Crows-Storm/Axis/common/util"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 )
 
@@ -49,7 +47,7 @@ type CreateUserItem struct {
 type CreateBatchUserCommandHandler decorator.CommandHandler[CreateBatchUserCommand, struct{}]
 
 type createBatchUserCommandHandler struct {
-	userRepo domain.Repository
+	repo domain.Repository
 }
 
 func NewCreateBatchUserCommandHandler(
@@ -60,7 +58,7 @@ func NewCreateBatchUserCommandHandler(
 		panic("nil User Repository")
 	}
 	return decorator.ApplyCommandDecorators[CreateBatchUserCommand, struct{}](
-		createBatchUserCommandHandler{userRepo: repo},
+		createBatchUserCommandHandler{repo: repo},
 		metricsClient,
 	)
 }
@@ -74,16 +72,13 @@ func (c createBatchUserCommandHandler) Handle(ctx context.Context, cmd CreateBat
 	users := make([]*domain.User, 0, len(cmd.Items))
 	for _, item := range cmd.Items {
 		users = append(users, &domain.User{
-			Id:         util.GenerateID(),
-			LoginId:    item.LoginId,
-			Password:   item.Password,
-			Email:      item.Email,
-			CreateTime: time.Now(),
-			UpdateTime: time.Now(),
+			//Id:         util.GenerateFlakeID(), need use domain create
+			LoginId: item.LoginId,
+			Email:   item.Email,
 		})
 	}
 
-	err := c.userRepo.CreateBatch(ctx, users)
+	err := c.repo.CreateBatch(ctx, users)
 	if err != nil {
 		return struct{}{}, err
 	}

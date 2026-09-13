@@ -45,8 +45,8 @@ func (a *AuthAppService) IssueToken(ctx context.Context, principal *domain.Princ
 	return a.tokenIssuer.Issue(ctx, principal)
 }
 
-func (a *AuthAppService) RefreshToken(ctx context.Context, refreshToken string) (*jwt.TokenPayload, error) {
-	return a.tokenIssuer.Refresh(ctx, refreshToken)
+func (a *AuthAppService) RefreshToken(ctx context.Context, refreshToken string, p *domain.Principal) (*jwt.TokenPayload, error) {
+	return a.tokenIssuer.Refresh(ctx, refreshToken, p)
 }
 
 func (a *AuthAppService) Logout(ctx context.Context, accessToken string) error {

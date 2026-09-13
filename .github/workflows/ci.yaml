@@ -1,0 +1,109 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, release/*]
+  pull_request:
+    branches: [main]
+
+# 关键: 授予 OIDC Token 权限 (Cosign Keyless 签名必需)
+permissions:
+  contents: read
+  packages: write
+  id-token: write        # ← Cosign OIDC 必须
+  attestations: write    # ← SLSA Provenance 必须
+
+env:
+  REGISTRY: harbor.yourdomain.com # TODO
+  IMAGE_NAME: myorg/Axis
+  DAGGER_VERSION: 0.15.3
+
+jobs:
+  # ==================== CI: 构建 + 测试 + 签名 ====================
+  build-and-sign:
+    name: Build, Test & Sign
+    runs-on: ubuntu-latest
+    outputs:
+      image-digest: ${{ steps.publish.outputs.digest }}
+      image-tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Dagger
+        uses: dagger/dagger-for-github@v7
+        with:
+          version: ${{ env.DAGGER_VERSION }}
+          verb: call
+
+      - name: Login to Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Run Dagger CI Pipeline
+        id: publish
+        env:
+          DAGGER_REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          # 生成分支/PR 对应的 tag
+          TAG="${GITHUB_REF_NAME//\//-}-$(echo $GITHUB_SHA | head -c7)"
+
+          # 调用 Dagger Module
+          IMAGE_ADDR=$(dagger call ci-pipeline \
+            --source=. \
+            --registry=${{ env.REGISTRY }}/myorg \
+            --tag=$TAG \
+            --registry-password=env:DAGGER_REGISTRY_PASSWORD)
+
+          echo "image=$IMAGE_ADDR" >> $GITHUB_OUTPUT
+          echo "version=$TAG" >> $GITHUB_OUTPUT
+
+      # ==================== 生成 SBOM (软件物料清单) ====================
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.publish.outputs.image }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      # ==================== 附加 SBOM 到镜像 ====================
+      - name: Attest SBOM to Image
+        uses: actions/attest-sbom@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
+
+  # ==================== CD: 更新 GitOps 仓库 ====================
+  update-gitops:
+    name: Update GitOps Manifests
+    needs: build-and-sign
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Fleet Infra
+        uses: actions/checkout@v4
+        with:
+          repository: myorg/fleet-infra
+          token: ${{ secrets.FLEET_INFRA_TOKEN }}
+          path: fleet-infra
+
+      - name: Update Image Tag in GitOps Repo
+        run: |
+          cd fleet-infra/clusters/production/apps/Axis
+
+          # 使用 yq 更新 Kustomize 的 image tag
+          yq -i '.images[0].newTag = "${{ needs.build-and-sign.outputs.image-tag }}"' \
+            kustomization.yaml
+
+          # 提交变更 → FluxCD 会自动检测并部署
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --staged --quiet || git commit -m \
+            "chore: update Axis to ${{ needs.build-and-sign.outputs.image-tag }}"
+          git push

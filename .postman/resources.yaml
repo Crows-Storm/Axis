@@ -1,0 +1,14 @@
+# Use this workspace to collaborate
+workspace:
+  id: ""
+
+localResources:
+  specs:
+    - ../api/ledgerpb/ledger.proto
+    - ../api/authpb/auth.proto
+    - ../api/openapi/auth-swagger.yaml
+    - ../api/openapi/ledger-swagger.yaml
+    - ../api/openapi/user-swagger.yaml
+    - ../api/openapi/wallet-swagger.yaml
+    - ../api/userpb/user.proto
+    - ../api/walletpb/wallet.proto

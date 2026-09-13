@@ -12,10 +12,6 @@ import (
 type queryLoggingDecorator[C, R any] struct {
 	base QueryHandler[C, R]
 }
-type commandLoggingDecorator[C, R any] struct {
-	logger *logrus.Entry
-	base   QueryHandler[C, R]
-}
 
 func (q queryLoggingDecorator[C, R]) Handle(ctx context.Context, cmd C) (result R, err error) {
 

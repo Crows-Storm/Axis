@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
+	commuser "github.com/Crows-Storm/Axis/common/domain/user"
 	"github.com/Crows-Storm/Axis/common/server/store"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 	"github.com/sirupsen/logrus"
@@ -16,12 +16,14 @@ import (
 )
 
 type UserModel struct {
-	Id         int64     `gorm:"column:id;unsigned;primaryKey;"`
-	LoginId    string    `gorm:"column:login_id;uniqueIndex;type:varchar(50);not null"`
-	Password   string    `gorm:"column:password;type:varchar(255);not null"`
-	Email      string    `gorm:"column:email;uniqueIndex;type:varchar(100);not null"`
-	Status     int8      `gorm:"column:status;type:tinyint;default:1;not null;comment:'1:normal 0:disable'"`
-	Deleted    int8      `gorm:"column:deleted;type:tinyint;default:0;not null;index;comment:'0:not deleted 1:deleted'"`
+	ID       int64  `gorm:"column:id;unsigned;primaryKey;"`
+	LoginId  string `gorm:"column:login_id;uniqueIndex:uk_login_id;type:varchar(50);not null"`
+	Username string `gorm:"column:username;type:varchar(50);not null"`
+	Password string `gorm:"column:password;type:varchar(255);not null"`
+	Email    string `gorm:"column:email;uniqueIndex:uk_email;type:varchar(100);not null"`
+	// status: 0: pending 1: activated 2: disabled
+	Status     int8      `gorm:"column:status;type:tinyint;default:1;not null;index:idx_status;index:idx_deleted_status,priority:2"`
+	Deleted    int8      `gorm:"column:deleted;type:tinyint;default:0;not null;index:idx_deleted_status,priority:1"`
 	CreateTime time.Time `gorm:"column:create_time;type:datetime;not null;autoCreateTime"`
 	UpdateTime time.Time `gorm:"column:update_time;type:datetime;not null;autoUpdateTime"`
 }
@@ -31,39 +33,30 @@ func (*UserModel) TableName() string {
 }
 
 func (m *UserModel) toDomain() *domain.User {
+	// TODO: maybe need apply event to build Domain: Event sourcing
 	return &domain.User{
-		Id:         m.Id,
-		LoginId:    m.LoginId,
-		Password:   m.Password,
-		Email:      m.Email,
-		Status:     m.Status,
-		Deleted:    m.Deleted,
-		CreateTime: m.CreateTime,
-		UpdateTime: m.UpdateTime,
+		ID:      m.ID,
+		LoginId: m.LoginId,
+		Email:   m.Email,
+		Status:  commuser.Status(m.Status),
 	}
 }
 
 func fromDomain(user *domain.User) *UserModel {
 	return &UserModel{
-		Id:         user.Id,
-		LoginId:    user.LoginId,
-		Password:   user.Password,
-		Email:      user.Email,
-		Status:     user.Status,
-		Deleted:    user.Deleted,
-		CreateTime: user.CreateTime,
-		UpdateTime: user.UpdateTime,
+		ID:      user.ID,
+		LoginId: user.LoginId,
+		Email:   user.Email,
+		Status:  user.Status.Value(),
 	}
 }
 
 type UserMariaRepository struct {
-	lock  *sync.RWMutex
 	store *store.Store
 }
 
 func NewUserMariaRepository(store *store.Store) *UserMariaRepository {
 	repo := &UserMariaRepository{
-		lock:  &sync.RWMutex{},
 		store: store,
 	}
 
@@ -79,12 +72,9 @@ func (u *UserMariaRepository) autoMigrate() error {
 }
 
 func (u *UserMariaRepository) GetInfo(id int64) (*domain.User, error) {
-	u.lock.RLock()
-	defer u.lock.RUnlock()
-
 	var userModel UserModel
-	result := u.store.DB().
-		Where("id = ? AND deleted = 0", id).
+	result := u.store.DB().Scopes(domain.NotDeleted).
+		Where("id = ?", id).
 		First(&userModel)
 
 	if result.Error != nil {
@@ -99,12 +89,9 @@ func (u *UserMariaRepository) GetInfo(id int64) (*domain.User, error) {
 }
 
 func (u *UserMariaRepository) GetByLoginId(ctx context.Context, loginId string) (*domain.User, error) {
-	u.lock.RLock()
-	defer u.lock.RUnlock()
-
 	var userModel UserModel
-	result := u.store.DB().WithContext(ctx).
-		Where("login_id = ? AND deleted = 0", loginId).
+	result := u.store.DB().WithContext(ctx).Scopes(domain.NotDeleted).
+		Where("login_id = ?", loginId).
 		First(&userModel)
 
 	if result.Error != nil {
@@ -119,18 +106,12 @@ func (u *UserMariaRepository) GetByLoginId(ctx context.Context, loginId string) 
 }
 
 func (u *UserMariaRepository) Create(ctx context.Context, user *domain.User) (*domain.User, error) {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-
-	//user.Status = 1
-	//user.Deleted = 0
-
 	userModel := fromDomain(user)
 
 	err := u.store.Transaction(func(tx *gorm.DB) error {
 		var count int64
-		if err := tx.Model(&UserModel{}).
-			Where("login_id = ? AND deleted = 0", user.LoginId).
+		if err := tx.Model(&UserModel{}).Scopes(domain.NotDeleted).
+			Where("login_id = ?", user.LoginId).
 			Count(&count).Error; err != nil {
 			return fmt.Errorf("failed to check loginId existence: %w", err)
 		}
@@ -138,8 +119,8 @@ func (u *UserMariaRepository) Create(ctx context.Context, user *domain.User) (*d
 			return fmt.Errorf("loginId already exists: %s", user.LoginId)
 		}
 
-		if err := tx.Model(&UserModel{}).
-			Where("email = ? AND deleted = 0", user.Email).
+		if err := tx.Model(&UserModel{}).Scopes(domain.NotDeleted).
+			Where("email = ?", user.Email).
 			Count(&count).Error; err != nil {
 			return fmt.Errorf("failed to check email existence: %w", err)
 		}
@@ -152,7 +133,7 @@ func (u *UserMariaRepository) Create(ctx context.Context, user *domain.User) (*d
 		}
 
 		logger.WithFields(logrus.Fields{
-			"user_id":       userModel.Id,
+			"user_id":       userModel.ID,
 			"login_id":      userModel.LoginId,
 			"email":         userModel.Email,
 			"rows_affected": tx.RowsAffected,
@@ -177,16 +158,10 @@ func (u *UserMariaRepository) CreateBatch(ctx context.Context, users []*domain.U
 		return nil
 	}
 
-	u.lock.Lock()
-	defer u.lock.Unlock()
-
 	return u.store.Transaction(func(tx *gorm.DB) error {
 		userModels := make([]*UserModel, 0, len(users))
 
 		for _, user := range users {
-			user.Create()
-			user.Status = 1
-			user.Deleted = 0
 			userModels = append(userModels, fromDomain(user))
 		}
 
@@ -200,63 +175,48 @@ func (u *UserMariaRepository) CreateBatch(ctx context.Context, users []*domain.U
 	})
 }
 
-func (u *UserMariaRepository) Update(
-	ctx context.Context,
-	user *domain.User,
-	updateFun func(context.Context, *domain.User) (*domain.User, error),
-) error {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-
+func (u *UserMariaRepository) Update(ctx context.Context, user *domain.User) error {
 	return u.store.Transaction(func(tx *gorm.DB) error {
 		var userModel UserModel
-		result := tx.WithContext(ctx).
+		result := tx.WithContext(ctx).Scopes(domain.NotDeleted).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("id = ? AND deleted = 0", user.Id).
+			Where("id = ?", user.ID).
 			First(&userModel)
 
 		if result.Error != nil {
 			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-				return domain.NotFoundError{UserId: user.Id}
+				return domain.NotFoundError{UserId: user.ID}
 			}
 			return fmt.Errorf("failed to lock user: %w", result.Error)
 		}
 
-		domainUser := userModel.toDomain()
-
-		updatedUser, err := updateFun(ctx, domainUser)
-		if err != nil {
-			return fmt.Errorf("update function failed: %w", err)
-		}
-
-		updatedUser.UpdateTime = time.Now()
-		updatedModel := fromDomain(updatedUser)
+		updatedModel := fromDomain(user)
 
 		if err := tx.WithContext(ctx).
 			Model(&UserModel{}).
-			Where("id = ?", updatedUser.Id).
+			Where("id = ?", user.ID).
 			Updates(updatedModel).Error; err != nil {
 			return fmt.Errorf("failed to update user: %w", err)
 		}
 
 		logger.WithFields(logrus.Fields{
-			"user_id":       updatedUser.Id,
+			"user_id":       user.ID,
 			"rows_affected": tx.RowsAffected,
 		}).Info("User updated successfully")
 
+		if tx.RowsAffected < 1 {
+			return domain.NotFoundError{UserId: user.ID}
+		}
 		return nil
 	})
 }
 
 func (u *UserMariaRepository) Disable(ctx context.Context, userId int64) error {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-
 	result := u.store.DB().WithContext(ctx).
-		Model(&UserModel{}).
-		Where("id = ? AND deleted = 0", userId).
+		Model(&UserModel{}).Scopes(domain.NotDeleted).
+		Where("id = ?", userId).
 		Updates(map[string]interface{}{
-			"status":      0, // setting status to 0: disable
+			"status":      commuser.Disabled, // setting status to 2: disable
 			"update_time": time.Now(),
 		})
 
@@ -270,19 +230,16 @@ func (u *UserMariaRepository) Disable(ctx context.Context, userId int64) error {
 
 	logger.WithFields(logrus.Fields{
 		"user_id": userId,
-		"status":  0,
+		"status":  commuser.Disabled,
 	}).Info("User status updated")
 
 	return nil
 }
 
 func (u *UserMariaRepository) SoftDelete(ctx context.Context, userId int64) error {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-
 	result := u.store.DB().WithContext(ctx).
-		Model(&UserModel{}).
-		Where("id = ? AND deleted = 0", userId).
+		Model(&UserModel{}).Scopes(domain.NotDeleted).
+		Where("id = ?", userId).
 		Updates(map[string]interface{}{
 			"deleted":     1, // setting deleted to 1: deleted
 			"update_time": time.Now(),
@@ -327,20 +284,20 @@ func (u *UserMariaRepository) ExistsWithTransaction(ctx context.Context, id int6
 	var err error
 
 	if id > 0 {
-		err = u.store.DB().Model(&UserModel{}).
-			Where("id = ? AND deleted = 0", id).
+		err = u.store.DB().Model(&UserModel{}).Scopes(domain.NotDeleted).
+			Where("id = ?", id).
 			Count(&count).Error
 	}
 
 	if loginId != "" {
-		err = u.store.DB().Model(&UserModel{}).
-			Where("login_id = ? AND deleted = 0", loginId).
+		err = u.store.DB().Model(&UserModel{}).Scopes(domain.NotDeleted).
+			Where("login_id = ?", loginId).
 			Count(&count).Error
 	}
 
 	if email != "" {
-		err = u.store.DB().Model(&UserModel{}).
-			Where("email = ? AND deleted = 0", email).
+		err = u.store.DB().Model(&UserModel{}).Scopes(domain.NotDeleted).
+			Where("email = ?", email).
 			Count(&count).Error
 	}
 
@@ -353,9 +310,6 @@ func (u *UserMariaRepository) ExistsWithTransaction(ctx context.Context, id int6
 
 // GetStats query in dashboard or grpc
 func (u *UserMariaRepository) GetStats(ctx context.Context) (map[string]interface{}, error) {
-	u.lock.RLock()
-	defer u.lock.RUnlock()
-
 	var stats struct {
 		TotalUsers   int64 `gorm:"column:total_users"`
 		ActiveUsers  int64 `gorm:"column:active_users"`
@@ -366,9 +320,9 @@ func (u *UserMariaRepository) GetStats(ctx context.Context) (map[string]interfac
 		SELECT 
 			COUNT(*) as total_users,
 			SUM(CASE WHEN status = 1 AND deleted = 0 THEN 1 ELSE 0 END) as active_users,
-			SUM(CASE WHEN status = 0 AND deleted = 0 THEN 1 ELSE 0 END) as disable_users,
+			SUM(CASE WHEN status = 2 AND deleted = 0 THEN 1 ELSE 0 END) as disable_users,
 			SUM(CASE WHEN deleted = 1 THEN 1 ELSE 0 END) as deleted_users
-		FROM users
+		FROM sys_user
 	`).Scan(&stats).Error
 
 	if err != nil {

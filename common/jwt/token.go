@@ -18,7 +18,7 @@ type TokenPayload struct {
 type TokenIssuer interface {
 	Issue(ctx context.Context, principal *domain.Principal) (*TokenPayload, error)
 
-	Refresh(ctx context.Context, refreshToken string) (*TokenPayload, error)
+	Refresh(ctx context.Context, refreshToken string, p *domain.Principal) (*TokenPayload, error)
 
 	Revoke(ctx context.Context, accessToken string) error
 

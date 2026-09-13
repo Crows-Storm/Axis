@@ -11,7 +11,7 @@ import (
 )
 
 type VerifyLogin struct {
-	LoginId   string `json:"loginId"`
+	LoginId   string `json:"login_id"`
 	Password  string `json:"password"`
 	RequestId string `json:"requestId"`
 }
@@ -43,7 +43,9 @@ func (g verifyLoginHandler) Handle(ctx context.Context, query VerifyLogin) (bool
 		return false, errors.New(server.CodeBadRequest.String())
 	}
 	psw := g.userRepo.GetPasswordByLoginId(ctx, query.LoginId)
-	// 09e006642e7c6e2d3fa14f3f6e4b2f815a7d02cd8d0669c3bb1f78748bdd1999
+	// H1: 09e006642e7c6e2d3fa14f3f6e4b2f815a7d02cd8d0669c3bb1f78748bdd1999
+	// encode: utils.HashForStorage(H1) = H1 + salt
+	// encode: {{Store psw}} + salt and request id and timestamp
 	if err := utils.VerifyPassword(psw, query.Password, query.RequestId); err != nil {
 		return false, err
 	}

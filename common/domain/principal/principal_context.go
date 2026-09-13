@@ -2,6 +2,7 @@ package principal
 
 import (
 	"context"
+	"fmt"
 )
 
 type ContextKey struct{}
@@ -15,4 +16,12 @@ func FromContext(ctx context.Context) *Principal {
 		return p
 	}
 	return nil
+}
+
+func GetUserIDFromContext(ctx context.Context) (int64, error) {
+	p := FromContext(ctx)
+	if p == nil {
+		return 0, fmt.Errorf("principal not found in context")
+	}
+	return p.UserId, nil
 }

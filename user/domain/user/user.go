@@ -1,26 +1,30 @@
+// Package user provides the user domain model and operations.
+// It implements Domain-Driven Design patterns including:
+// - Aggregate roots
+// - Domain events
+// - Repository pattern
 package user
 
 import (
-	"time"
+	"github.com/Crows-Storm/Axis/common/domain"
+	"github.com/Crows-Storm/Axis/common/domain/event"
+	"github.com/Crows-Storm/Axis/common/domain/event/events/user"
+	commuser "github.com/Crows-Storm/Axis/common/domain/user"
 )
 
+const DomainName = "User"
+
 type User struct {
-	Id       int64  `json:"id"`
-	LoginId  string `json:"loginId"`
-	Password string `json:"-"`
-	Email    string `json:"email"`
+	// Aggregate Root
+	domain.AggregateRoot `json:"aggregate_root"`
+
+	ID       int64           `json:"id"` // aggregate id
+	LoginId  string          `json:"login_id"`
+	Email    string          `json:"email"`
+	Status   commuser.Status `json:"status"` // user the status
+	Password string          `json:"-"`
 	//Profile  Profile `json:"profile"`
-	Status  int8 `json:"status"`
-	Deleted int8 `json:"deleted"`
-
-	CreateTime time.Time `json:"createTime"`
-	UpdateTime time.Time `json:"updateTime"`
 }
-
-// Desensitization password
-//func (u *User) Desensitization() {
-//	u.password = ""
-//}
 
 // Profile is User basic profit
 type Profile struct {
@@ -38,7 +42,26 @@ func DefaultProfile() Profile {
 	}
 }
 
-func (u *User) Create() {
-	u.CreateTime = time.Now()
-	u.UpdateTime = time.Now()
+func (u *User) AggregateName() string {
+	return DomainName
+}
+
+// ApplyEvent implements the domain.Aggregate
+// here apply event to the domain, setting all domain field and event recap to the apply
+func (u *User) ApplyEvent(event event.DomainEvent) error {
+	switch e := event.(type) {
+	case *user.UserCreatedPayload:
+		u.ID = e.AggregateId()
+		u.LoginId = e.LoginId
+		u.Email = e.Email
+		u.Status = 1
+
+	case *user.UserUpdatedPayload:
+
+		u.Email = e.Email
+
+	case *user.UserApplyPasswordPayload:
+		// nothing
+	}
+	return nil
 }

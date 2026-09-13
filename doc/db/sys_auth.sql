@@ -55,7 +55,7 @@ CREATE TABLE sys_user_role (
                                UNIQUE KEY uk_user_role (user_id, role_id),
                                KEY idx_user_id (user_id),
                                KEY idx_role_id (role_id)
-) COMMENT='用户角色关联表'
+) COMMENT='用户角色关联表';
 
 CREATE TABLE sys_role_menu (
                                id BIGINT PRIMARY KEY AUTO_INCREMENT,

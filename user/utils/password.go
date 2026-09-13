@@ -57,7 +57,7 @@ func VerifyPassword(storedEncrypted, clientHash, requestID string) error {
 	// use UTC
 	nowSec := time.Now().UTC().Unix()
 	timestamps := make([]int64, 0, 11)
-	for i := int64(-5); i <= 5; i++ {
+	for i := int64(-2); i <= 2; i++ {
 		timestamps = append(timestamps, nowSec+i)
 	}
 

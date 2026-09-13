@@ -6,8 +6,10 @@ import (
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/discovery/grpcx"
+	"github.com/Crows-Storm/Axis/common/domain/event"
 	"github.com/Crows-Storm/Axis/common/domain/principal"
 	"github.com/Crows-Storm/Axis/common/jwt"
+	"github.com/Crows-Storm/Axis/common/util"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc/metadata"
 )
@@ -30,6 +32,12 @@ func RequestIDMiddleware() gin.HandlerFunc {
 			return
 		}
 		c.Header("trace_id", traceID)
+
+		// init correlation_id
+		correlationId := util.UUIDV4()
+		c.Header("trace_id", traceID)
+		ctx := event.WithCorrelationId(c.Request.Context(), correlationId)
+		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}
 }

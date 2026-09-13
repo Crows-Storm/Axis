@@ -3,25 +3,29 @@ package command
 import (
 	"context"
 	"errors"
-	"time"
 
-	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/decorator"
-	"github.com/Crows-Storm/Axis/common/util"
+	commuser "github.com/Crows-Storm/Axis/common/domain/user"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
-	"github.com/Crows-Storm/Axis/user/utils"
 )
 
 type CreateUserCommand struct {
-	LoginId  string
+	LoginID  string
 	Password string
 	Email    string
+}
+
+func (c CreateUserCommand) Validate() error {
+	if c.LoginID == "" || c.Password == "" || c.Email == "" {
+		return errors.New("invalid params")
+	}
+	return nil
 }
 
 type CreateUserCommandHandler decorator.CommandHandler[CreateUserCommand, struct{}]
 
 type createUserCommandHandler struct {
-	userRepo domain.Repository
+	repo domain.Repository
 }
 
 func NewCreateUserCommandHandler(
@@ -32,7 +36,7 @@ func NewCreateUserCommandHandler(
 		panic("nil User Repository")
 	}
 	return decorator.ApplyCommandDecorators[CreateUserCommand, struct{}](
-		createUserCommandHandler{userRepo: repo},
+		createUserCommandHandler{repo: repo},
 		metricsClient,
 	)
 }
@@ -45,26 +49,47 @@ func (c createUserCommandHandler) Handle(ctx context.Context, cmd CreateUserComm
 	// - Create an audit log
 	// If any operation fails, the entire transaction will be rolled back.
 
-	psw, err := utils.HashForStorage(cmd.Password)
-	if err != nil {
-		logger.Errorf("hashing password error: %v", err)
-		return struct{}{}, errors.New("invalid password")
+	// TODO: handle in domain service
+	//psw, err := utils.HashForStorage(cmd.Password)
+	//if err != nil {
+	//	logger.Errorf("hashing password error: %v", err)
+	//	return struct{}{}, errors.New("invalid password")
+	//}
+
+	// Check if the command is valid
+	if err := cmd.Validate(); err != nil {
+		return struct{}{}, err
 	}
-	exist, err := c.userRepo.ExistsWithTransaction(ctx, 0, cmd.LoginId, "")
+
+	exist, err := c.repo.ExistsWithTransaction(ctx, 0, cmd.LoginID, "")
 	if err != nil {
 		return struct{}{}, err
 	}
 	if exist {
-		return struct{}{}, errors.New("user already exists")
+		return struct{}{}, commuser.ErrUserAlreadyExists
 	}
-	_, err = c.userRepo.Create(ctx, &domain.User{
-		Id:         util.GenerateID(),
-		LoginId:    cmd.LoginId,
-		Password:   psw, // is H1 + salt to storage
-		Email:      cmd.Email,
-		CreateTime: time.Now(),
-		UpdateTime: time.Now(),
-	})
+
+	// factory fun to create/init aggregate root
+	u, err := domain.Create(ctx, cmd.LoginID, cmd.Email)
+
+	if err != nil {
+		return struct{}{}, err
+	}
+
+	// apply password utils return the password to store
+	if err := u.ApplyPassword(ctx, cmd.Password, false); err != nil {
+		return struct{}{}, err
+	}
+	// At this point, two domain events will be generated
+
+	// Domain Event Driver
+	//	- An Event Store repository instance is required
+	//	- The domain is built during the EvnetStore repository creation process
+	//	- Within a transaction, the domain is inserted into `domain_events` and the event is pushed, awaiting ACK
+	//	- ACK: Returns success if yes, failure if no
+	//	- On the consumer side, the domain is inserted into the read model; returns yes on success, no on failure
+	// TODO: caller event bus to publish events
+	_, err = c.repo.Create(ctx, u) // to save
 	if err != nil {
 		return struct{}{}, err
 	}

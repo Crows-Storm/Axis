@@ -12,10 +12,13 @@ import (
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/discovery/consulx"
 	"github.com/Crows-Storm/Axis/common/discovery/registry"
+	"github.com/Crows-Storm/Axis/common/domain/event"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
 	"github.com/Crows-Storm/Axis/common/jwt"
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/common/server/cache"
+	"github.com/Crows-Storm/Axis/common/server/kafka"
+	"github.com/Crows-Storm/Axis/common/server/kafka/outbox"
 	"github.com/Crows-Storm/Axis/common/server/store"
 	"github.com/Crows-Storm/Axis/user/protos"
 	"github.com/Crows-Storm/Axis/user/service"
@@ -134,6 +137,81 @@ func main() {
 		Host: cfg.ServerHost,
 		Port: cfg.GRPCPort,
 	})
+
+	// TODO: init and connect to kafka
+	producerCfg := kafka.DefaultProducerConfig(cfg.KafkaBrokers)
+	producerCfg.ClientID = "order-service-producer"
+	producerCfg.TopicPrefix = "order"
+	producer, err := kafka.NewProducer(producerCfg, logger)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to init Kafka producer")
+	}
+
+	// ──── 2. 初始化序列化器 & Topic 路由 ────
+	serializer := kafka.NewSerializer()
+	serializer.Register("OrderCreated", func() event.DomainEvent { return &events.OrderCreated{} })
+	serializer.Register("OrderCancelled", func() event.DomainEvent { return &events.OrderCancelled{} })
+
+	// router prefix
+	router := kafka.NewTopicRouter(serviceName)
+
+	// ──── 3. 初始化 EventPublisher (EventBus 实现) ────
+	publisher := kafka.NewEventPublisher(producer, serializer, router, logger.Log)
+	publisher.Use(kafka.TracingMiddleware())
+	publisher.Use(kafka.CorrelationIDMiddleware())
+	publisher.Use(kafka.AuditMiddleware("audit"))
+
+	// ──── 4. 初始化 Outbox ────
+	outboxRepo := outbox.NewPostgresOutboxRepository(db)
+	outboxProcessor := outbox.NewProcessor(outboxRepo, publisher, 2*time.Second, 100, logger)
+	outboxProcessor.Start()
+
+	// ──── 5. 初始化 Consumer ────
+	dispatcher := event.NewEventDispatcher()
+
+	// 注册消费端 handler
+	dispatcher.Register(&handlers.PaymentCompletedHandler{...})
+	dispatcher.Register(&handlers.InventoryReservedHandler{...})
+
+	consumerCfg := kafka.DefaultConsumerConfig(cfg.KafkaBrokers, "order-service-group")
+	consumerCfg.Topics = []string{
+		"payment-service.payment-completed",
+		"inventory-service.inventory-reserved",
+	}
+	consumerCfg.DeadLetterTopic = "order-service.dlq"
+
+	consumer, err := kafka.NewConsumer(consumerCfg, dispatcher, producer, logger)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to init Kafka consumer")
+	}
+	if err := consumer.Start(); err != nil {
+		logger.WithError(err).Fatal("Failed to start Kafka consumer")
+	}
+
+	// ──── 6. 注入到 Application Service ────
+	orderAppSvc := application.NewOrderService(publisher, outboxRepo)
+
+	// ──── 7. 健康检查 ────
+	healthChecker := kafka.NewHealthChecker(cfg.KafkaBrokers)
+	// 注册到 HTTP health endpoint...
+
+	// ──── 8. 优雅关闭 ────
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("Shutting down...")
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
+
+	// 按依赖顺序关闭
+	consumer.Stop()
+	outboxProcessor.Stop()
+	publisher.Close()
+
+	_ = shutdownCtx
+	logger.Info("Server exited gracefully")
 
 	httpErrCh := server.RunHTTPServerWithLifecycle(ctx, cfg.GetServerAddr(), func(router *gin.Engine) {
 		middlewares := []protos.MiddlewareFunc{

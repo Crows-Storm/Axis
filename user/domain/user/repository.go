@@ -3,26 +3,50 @@ package user
 import (
 	"context"
 	"fmt"
+
+	"gorm.io/gorm"
 )
 
 type Repository interface {
-	GetInfo(id int64) (*User, error)
-	GetByLoginId(ctx context.Context, loginId string) (*User, error)
-	ExistsWithTransaction(ctx context.Context, id int64, loginId string, email string) (bool, error)
-	GetStats(ctx context.Context) (map[string]interface{}, error)
-	GetPasswordByLoginId(ctx context.Context, loginId string) string
+	QueryRepository
 
-	Create(ctx context.Context, user *User) (*User, error)
-	CreateBatch(ctx context.Context, users []*User) error
-	Update(
-		ctx context.Context,
-		user *User,
-		updateFun func(context.Context, *User) (*User, error),
-	) error
+	CreatePreCheckRepository
+	BatchRegistrationRepository
+
+	RegistrationRepository
+
+	ProfileRepository
+
+	DeleteRepository
+}
+
+type ProfileRepository interface {
+	Update(ctx context.Context, user *User) error
 	Disable(ctx context.Context, userId int64) error
+}
 
+type DeleteRepository interface {
 	// Dangerous operation
 	SoftDelete(ctx context.Context, userId int64) error
+}
+
+type RegistrationRepository interface {
+	Create(ctx context.Context, user *User) (*User, error)
+}
+
+type BatchRegistrationRepository interface {
+	CreateBatch(ctx context.Context, users []*User) error
+}
+
+type QueryRepository interface {
+	GetInfo(id int64) (*User, error)
+	GetByLoginId(ctx context.Context, loginId string) (*User, error)
+	GetStats(ctx context.Context) (map[string]interface{}, error)
+	GetPasswordByLoginId(ctx context.Context, loginId string) string
+}
+
+type CreatePreCheckRepository interface {
+	ExistsWithTransaction(ctx context.Context, id int64, loginId string, email string) (bool, error)
 }
 
 type NotFoundError struct {
@@ -31,4 +55,8 @@ type NotFoundError struct {
 
 func (e NotFoundError) Error() string {
 	return fmt.Sprintf("User %d Not Found !!!", e.UserId)
+}
+
+func NotDeleted(db *gorm.DB) *gorm.DB {
+	return db.Where("deleted = 0")
 }

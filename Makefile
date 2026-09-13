@@ -1,9 +1,16 @@
-.PHONY: gen genproto genopenapi gotidy clean help test test-auth test-auth-coverage test-auth-grpc test-bench
+.PHONY: gen genproto genopenapi gotidy clean help test test-auth test-auth-coverage test-auth-grpc test-bench gen-mock clean-mock
 
 .DEFAULT_GOAL := help
 
-gen: genproto genopenapi
+gen: genproto genopenapi gen-mock
 	@echo "✅ All code generation completed!"
+
+tdd-mock:
+	@echo "🔨 Generating mock code for TDD..."
+	@bash scripts/tdd_mock.sh
+
+clean-mock:
+	@bash scripts/tdd_mock.sh
 
 genproto:
 	@echo "🔨 Generating protobuf code..."
@@ -13,11 +20,12 @@ genopenapi:
 	@echo "🔨 Generating OpenAPI code..."
 	@bash scripts/genopenapi.sh
 
-clean:
+clean: clean-mock
 	@echo "🧹 Cleaning generated code..."
 	@find common/client -name "*.gen.go" -type f -delete 2>/dev/null || true
 	@find ./ -name "*.gen.go" -type f -delete 2>/dev/null || true
 	@find ./ -name "*.pb.go" -type f -delete 2>/dev/null || true
+	@find ./ -name "*.log" -type f -delete 2>/dev/null || true
 	@echo "✅ Cleanup completed!"
 
 gotidy:
@@ -56,7 +64,7 @@ test-bench:
 
 help:
 	@echo "Available commands:"
-	@echo "  make gen                  - Generate all code (protobuf + OpenAPI)"
+	@echo "  make gen                  - Generate all code (protobuf + OpenAPI + mockery)"
 	@echo "  make genproto             - Generate protobuf code only"
 	@echo "  make genopenapi           - Generate OpenAPI code only"
 	@echo "  make clean                - Clean all generated code"

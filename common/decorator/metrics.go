@@ -9,6 +9,9 @@ import (
 
 type MetricsClient interface {
 	Inc(key string, value int)
+	IncCounter(name string, tags ...string)
+	RecordTimer(name string, duration float64, tags ...string)
+	RecordHistogram(name string, value float64, tags ...string)
 }
 
 type queryMetricsDecorator[C, R any] struct {

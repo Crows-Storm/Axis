@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Crows-Storm/Axis/common/decorator"
+	"github.com/Crows-Storm/Axis/common/jwt"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 )
 
@@ -15,17 +16,19 @@ type DisableUserCommandHandler decorator.CommandHandler[DisableUserCommand, stru
 
 type disableUserCommandHandler struct {
 	userRepo domain.Repository
+	jwt      jwt.TokenIssuer
 }
 
 func NewDisableUserCommandHandler(
 	repo domain.Repository,
 	metricsClient decorator.MetricsClient,
+	jwt jwt.TokenIssuer,
 ) DisableUserCommandHandler {
 	if repo == nil {
 		panic("nil User Repository")
 	}
 	return decorator.ApplyCommandDecorators[DisableUserCommand, struct{}](
-		disableUserCommandHandler{userRepo: repo},
+		disableUserCommandHandler{userRepo: repo, jwt: jwt},
 		metricsClient,
 	)
 }
@@ -41,5 +44,11 @@ func (c disableUserCommandHandler) Handle(ctx context.Context, cmd DisableUserCo
 	if err != nil {
 		return struct{}{}, err
 	}
+
+	// TODO: revoke accessToken to blocklist
+	//accessToken := ""
+	//if err := c.jwt.Revoke(ctx, accessToken); err != nil {
+	//	return struct{}{}, err
+	//}
 	return struct{}{}, nil
 }

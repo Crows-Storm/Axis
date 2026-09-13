@@ -39,9 +39,9 @@ func (H *HTTPServer) AuthRoot(c *gin.Context) {
 func (H *HTTPServer) Login(c *gin.Context) {
 	// build req body
 	var req struct {
-		LoginType security.LoginType `json:"loginType" binding:"required"` // "password" | "sms_code" | "oauth" | "qrcode"
+		LoginType security.LoginType `json:"login_type" binding:"required"` // "password" | "sms_code" | "oauth" | "qrcode"
 		// Use json.RawMessage to delay parsing for fields with different login methods.
-		LoginId  string `json:"loginId"`
+		LoginId  string `json:"login_id"`
 		Password string `json:"password"`
 		Account  string `json:"account"`
 		Code     string `json:"code"`

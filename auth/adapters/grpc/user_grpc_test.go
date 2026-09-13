@@ -14,11 +14,27 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // MockUserServiceClient is a mock implementation of userpb.UserServiceClient
 type MockUserServiceClient struct {
 	mock.Mock
+}
+
+func (m *MockUserServiceClient) CreateAndBindIdentity(ctx context.Context, in *userpb.CreateAndBindIdentityRequest, opts ...grpc.CallOption) (*userpb.CreateAndBindIdentityResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MockUserServiceClient) GetByUnionID(ctx context.Context, in *userpb.GetByUnionIDRequest, opts ...grpc.CallOption) (*userpb.GetByUnionIDResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MockUserServiceClient) VerifyPassword(ctx context.Context, in *userpb.VerifyPasswordRequest, opts ...grpc.CallOption) (*wrapperspb.BoolValue, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (m *MockUserServiceClient) CreateUser(ctx context.Context, in *userpb.CreateUserRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {

@@ -1,9 +1,9 @@
 package pagination
 
 type Connection[T any] struct {
-	TotalCount int64      `json:"totalCount"`
+	TotalCount int64      `json:"total_count"`
 	Edges      []*Edge[T] `json:"edges"`
-	PageInfo   *PageInfo  `json:"pageInfo"`
+	PageInfo   *PageInfo  `json:"page_info"`
 }
 
 type Edge[T any] struct {
@@ -12,10 +12,10 @@ type Edge[T any] struct {
 }
 
 type PageInfo struct {
-	StartCursor     string `json:"startCursor"`
-	EndCursor       string `json:"endCursor"`
-	HasPreviousPage bool   `json:"hasPreviousPage"`
-	HasNextPage     bool   `json:"hasNextPage"`
+	StartCursor     string `json:"start_cursor"`
+	EndCursor       string `json:"end_cursor"`
+	HasPreviousPage bool   `json:"has_previous_page"`
+	HasNextPage     bool   `json:"has_next_page"`
 }
 
 type Args struct {

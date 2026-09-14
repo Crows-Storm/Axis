@@ -63,7 +63,7 @@ type DBConfig struct {
 	DBPath     string
 	DBHost     string
 	DBPort     int
-	DBLoginId  string
+	DBLoginID  string
 	DBPassword string
 	DBSchema   string
 	DBSslMode  string
@@ -154,7 +154,7 @@ func getDBConfig() DBConfig {
 		DBPath:     getEnvAsString("DB_PATH", ""),
 		DBHost:     getEnvAsString("DB_HOST", ""),
 		DBPort:     getEnvAsInt("DB_PORT", 3306),
-		DBLoginId:  getEnvAsString("DB_LOGIN_ID", ""),
+		DBLoginID:  getEnvAsString("DB_LOGIN_ID", ""),
 		DBPassword: getEnvAsString("DB_PASSWORD", ""),
 		DBSchema:   getEnvAsString("DB_SCHEMA", ""),
 		DBSslMode:  getEnvAsString("DB_SSL_MODE", "disable"),
@@ -197,7 +197,7 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 }
 
 func getReadRedis() ReadRedisConfig {
-	addressStr := getEnvAsString("WRITE_REDIS_ADDRESS", "localhost:6379")
+	addressStr := getEnvAsString("WRITE_REDIS_ADDRESS", "")
 	addresses := parseRedisAddresses(addressStr)
 	return ReadRedisConfig{
 		Address:      addresses,
@@ -208,7 +208,7 @@ func getReadRedis() ReadRedisConfig {
 }
 
 func getWriteRedis() WriteRedisConfig {
-	addressStr := getEnvAsString("READ_REDIS_ADDRESS", "localhost:6379")
+	addressStr := getEnvAsString("READ_REDIS_ADDRESS", "")
 	addresses := parseRedisAddresses(addressStr)
 	return WriteRedisConfig{
 		Address:      addresses,
@@ -220,7 +220,7 @@ func getWriteRedis() WriteRedisConfig {
 
 func parseRedisAddresses(addressStr string) []string {
 	if addressStr == "" {
-		return []string{"localhost:6379"}
+		return []string{""}
 	}
 
 	parts := strings.Split(addressStr, ",")
@@ -233,7 +233,7 @@ func parseRedisAddresses(addressStr string) []string {
 	}
 
 	if len(addresses) == 0 {
-		return []string{"localhost:6379"}
+		return []string{""}
 	}
 
 	return addresses

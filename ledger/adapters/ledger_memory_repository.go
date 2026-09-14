@@ -19,7 +19,7 @@ func NewLedgerMemoryRepository() *LedgerMemoryRepository {
 	}
 }
 
-func (l LedgerMemoryRepository) GetLedgerByWalletId(ctx context.Context, walletId int64) (*domain.Ledger, error) {
+func (l LedgerMemoryRepository) GetLedgerByWalletId(ctx context.Context, walletId uint64) (*domain.Ledger, error) {
 	//TODO implement me
 	panic("implement me")
 }

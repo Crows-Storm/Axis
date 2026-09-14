@@ -4,16 +4,16 @@ option go_package = "github.com/Crows-Storm/Axis/common/genproto/walletpb";
 
 service WalletService {
 
-  rpc GetWalletByUserId(GetWalletByUserIdRequest) returns (GetWalletByUserIdResponse);
+  rpc GetWalletByUserID(GetWalletByUserIDRequest) returns (GetWalletByUserIDResponse);
   rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
 }
 
-message GetWalletByUserIdRequest {
-  string userId = 1;
+message GetWalletByUserIDRequest {
+  string userID = 1;
 }
-message GetWalletByUserIdResponse {
-  string walletId = 1;
-  string userId = 2;
+message GetWalletByUserIDResponse {
+  string walletID = 1;
+  string userID = 2;
 
   repeated Balance balance = 3;
 }

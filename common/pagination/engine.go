@@ -18,7 +18,7 @@ func DefaultConfig() QueryConfig {
 	return QueryConfig{
 		SortField: "CreatedTime",
 		SortOrder: "ASC",
-		IDField:   "Id",
+		IDField:   "ID",
 	}
 }
 

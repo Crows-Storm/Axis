@@ -95,7 +95,7 @@ func main() {
 		Path:     dbCfg.DBPath,
 		Host:     dbCfg.DBHost,
 		Port:     dbCfg.DBPort,
-		User:     dbCfg.DBLoginId,
+		User:     dbCfg.DBLoginID,
 		Password: dbCfg.DBPassword,
 		DBName:   dbCfg.DBSchema,
 		SSLMode:  dbCfg.DBSslMode,

@@ -8,7 +8,7 @@ service LedgerService {
 }
 
 message CheckBalanceRequest {
-  string walletId = 1;
+  string walletID = 1;
 }
 message CheckBalanceResponse {
 }

@@ -35,20 +35,20 @@ func (a *PasswordAuthenticator) Authenticate(ctx context.Context, credential sec
 
 	// call gRPC to verify password, just return result(bool)
 	result, err := a.userService.VerifyPassword(ctx, &userpb.VerifyPasswordRequest{
-		LoginId:  c.LoginId,
+		LoginID:  c.LoginID,
 		Password: c.Password,
 	})
 	if err != nil {
-		return nil, errors.New("invalid loginId or password")
+		return nil, errors.New("invalid LoginID or password")
 	}
 
 	if !result.GetValue() {
-		return nil, errors.New("invalid loginId or password")
+		return nil, errors.New("invalid LoginID or password")
 	}
 
 	// get user info to build AuthenticatedIdentity
-	user, err := a.userService.GetUserByLoginId(ctx, &userpb.GetUserByLoginIdRequest{
-		LoginId: c.LoginId,
+	user, err := a.userService.GetUserByLoginID(ctx, &userpb.GetUserByLoginIDRequest{
+		LoginID: c.LoginID,
 	})
 
 	if err != nil {
@@ -60,9 +60,9 @@ func (a *PasswordAuthenticator) Authenticate(ctx context.Context, credential sec
 	}
 
 	return &security.AuthenticatedIdentity{
-		UserId:    user.Id,
-		UnionId:   c.LoginId,
-		Channel:   "loginId",
+		UserId:    user.ID,
+		UnionId:   c.LoginID,
+		Channel:   "LoginID",
 		IsNewUser: false,
 	}, nil
 }

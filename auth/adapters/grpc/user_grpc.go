@@ -24,8 +24,8 @@ func (u *UserGRPC) GetUserById(ctx context.Context, req *userpb.GetUserByIdReque
 	return u.client.GetUserById(ctx, req)
 }
 
-func (u *UserGRPC) GetUserByLoginId(ctx context.Context, req *userpb.GetUserByLoginIdRequest) (*userpb.GetUserByLoginIdResponse, error) {
-	return u.client.GetUserByLoginId(ctx, req)
+func (u *UserGRPC) GetUserByLoginID(ctx context.Context, req *userpb.GetUserByLoginIDRequest) (*userpb.GetUserByLoginIDResponse, error) {
+	return u.client.GetUserByLoginID(ctx, req)
 }
 
 func (u *UserGRPC) GetByUnionID(ctx context.Context, req *userpb.GetByUnionIDRequest) (*userpb.GetByUnionIDResponse, error) {

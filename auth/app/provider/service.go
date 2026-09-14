@@ -12,7 +12,7 @@ type UserService interface {
 	CreateUser(ctx context.Context, request *userpb.CreateUserRequest) (*emptypb.Empty, error)
 
 	GetUserById(ctx context.Context, request *userpb.GetUserByIdRequest) (*userpb.GetUserByIdResponse, error)
-	GetUserByLoginId(ctx context.Context, request *userpb.GetUserByLoginIdRequest) (*userpb.GetUserByLoginIdResponse, error)
+	GetUserByLoginID(ctx context.Context, request *userpb.GetUserByLoginIDRequest) (*userpb.GetUserByLoginIDResponse, error)
 
 	GetByUnionID(ctx context.Context, request *userpb.GetByUnionIDRequest) (*userpb.GetByUnionIDResponse, error)
 	// CreateAndBindIdentity Create a new user and bind their identity (register)

@@ -11,7 +11,7 @@ import (
 )
 
 type RoleModel struct {
-	Id         int64     `gorm:"column:id;primaryKey;autoIncrement"`
+	ID         uint64    `gorm:"column:id;primaryKey;autoIncrement"`
 	RoleCode   string    `gorm:"column:role_code;type:varchar(50);not null;uniqueIndex:uk_role_code_deleted,priority:1"`
 	RoleName   string    `gorm:"column:role_name;type:varchar(50);not null"`
 	RoleLevel  int       `gorm:"column:role_level;type:int;default:0"`
@@ -55,12 +55,12 @@ func (r *RoleMariaRepository) toDomainList(models []*RoleModel) []*domain.Role {
 	return roles
 }
 
-func (u *RoleMariaRepository) Get(ctx context.Context, id int64) (*domain.Role, error) {
+func (u *RoleMariaRepository) Get(ctx context.Context, id uint64) (*domain.Role, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u *RoleMariaRepository) GetByUserId(ctx context.Context, userId int64) (*domain.Role, error) {
+func (u *RoleMariaRepository) GetByUserId(ctx context.Context, userId uint64) (*domain.Role, error) {
 	//TODO implement me
 	panic("implement me")
 }

@@ -25,7 +25,7 @@ func (H *HTTPServer) AuthRoot(c *gin.Context) {
 	}
 
 	_, err := H.app.Queries.GetUser.Handle(c.Request.Context(), query.GetUserQuery{
-		Id: p.UserId,
+		ID: p.UserId,
 	})
 	if err != nil {
 		server.ErrorWithCode(c, server.CodeInvalidParams)
@@ -41,7 +41,7 @@ func (H *HTTPServer) Login(c *gin.Context) {
 	var req struct {
 		LoginType security.LoginType `json:"loginType" binding:"required"` // "password" | "sms_code" | "oauth" | "qrcode"
 		// Use json.RawMessage to delay parsing for fields with different login methods.
-		LoginId  string `json:"loginId"`
+		LoginID  string `json:"LoginID"`
 		Password string `json:"password"`
 		Account  string `json:"account"`
 		Code     string `json:"code"`
@@ -59,7 +59,7 @@ func (H *HTTPServer) Login(c *gin.Context) {
 	switch req.LoginType {
 	case security.LoginTypePassword:
 		credential = &authenticator.PasswordCredential{
-			LoginId:  req.LoginId,
+			LoginID:  req.LoginID,
 			Password: req.Password,
 		}
 	case security.LoginTypeSMSCode, security.LoginTypeEmailCode:

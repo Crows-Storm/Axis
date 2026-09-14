@@ -19,12 +19,12 @@ func NewMemoryWalletRepository() *MemoryWalletRepository {
 	}
 }
 
-func (m MemoryWalletRepository) GetWallet(ctx context.Context, id int64) (*domain.Wallet, error) {
+func (m MemoryWalletRepository) GetWallet(ctx context.Context, id uint64) (*domain.Wallet, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (m MemoryWalletRepository) GetWallets(ctx context.Context, userId int64) ([]*domain.Wallet, error) {
+func (m MemoryWalletRepository) GetWallets(ctx context.Context, userId uint64) ([]*domain.Wallet, error) {
 	//TODO implement me
 	panic("implement me")
 }

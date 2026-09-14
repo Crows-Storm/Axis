@@ -1,0 +1,17 @@
+with-expecter: true
+disable-version-string: true
+filename: "mock_{{.InterfaceName | snakecase}}.go"
+outpkg: "{{.PackageName}}mock"
+dir: "{{.InterfaceDir}}/mocks"
+all: false
+issue-845-fix: true
+
+packages:
+  github.com/Crows-Storm/Axis/wallet/domain:
+    recursive: true
+    # if want more interface: "(Repository|otherInterface)$"
+    include: "Repository$"
+
+  github.com/Crows-Storm/Axis/wallet/protos:
+    interfaces:
+      ServerInterface: {}

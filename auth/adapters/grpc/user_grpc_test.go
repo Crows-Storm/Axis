@@ -37,12 +37,12 @@ func (m *MockUserServiceClient) GetUserById(ctx context.Context, in *userpb.GetU
 	return args.Get(0).(*userpb.GetUserByIdResponse), args.Error(1)
 }
 
-func (m *MockUserServiceClient) GetUserByLoginId(ctx context.Context, in *userpb.GetUserByLoginIdRequest, opts ...grpc.CallOption) (*userpb.GetUserByLoginIdResponse, error) {
+func (m *MockUserServiceClient) GetUserByLoginID(ctx context.Context, in *userpb.GetUserByLoginIDRequest, opts ...grpc.CallOption) (*userpb.GetUserByLoginIDResponse, error) {
 	args := m.Called(ctx, in)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*userpb.GetUserByLoginIdResponse), args.Error(1)
+	return args.Get(0).(*userpb.GetUserByLoginIDResponse), args.Error(1)
 }
 
 // TestNewUserGRPC tests the constructor
@@ -66,7 +66,7 @@ func TestCreateUser_Success(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.CreateUserRequest{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}
@@ -91,7 +91,7 @@ func TestCreateUser_DuplicateUser(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.CreateUserRequest{
-		LoginId:  "existinguser",
+		LoginID:  "existinguser",
 		Password: "Test@1234",
 		Email:    "existing@example.com",
 	}
@@ -125,19 +125,19 @@ func TestCreateUser_InvalidRequest(t *testing.T) {
 		description string
 	}{
 		{
-			name: "empty_loginId",
+			name: "empty_LoginID",
 			req: &userpb.CreateUserRequest{
-				LoginId:  "",
+				LoginID:  "",
 				Password: "Test@1234",
 				Email:    "test@example.com",
 			},
-			expectedErr: status.Error(codes.InvalidArgument, "loginId is required"),
-			description: "LoginId cannot be empty",
+			expectedErr: status.Error(codes.InvalidArgument, "LoginID is required"),
+			description: "LoginID cannot be empty",
 		},
 		{
 			name: "empty_password",
 			req: &userpb.CreateUserRequest{
-				LoginId:  "testuser",
+				LoginID:  "testuser",
 				Password: "",
 				Email:    "test@example.com",
 			},
@@ -147,7 +147,7 @@ func TestCreateUser_InvalidRequest(t *testing.T) {
 		{
 			name: "invalid_email",
 			req: &userpb.CreateUserRequest{
-				LoginId:  "testuser",
+				LoginID:  "testuser",
 				Password: "Test@1234",
 				Email:    "invalid-email",
 			},
@@ -182,7 +182,7 @@ func TestCreateUser_ContextTimeout(t *testing.T) {
 	defer cancel()
 
 	req := &userpb.CreateUserRequest{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}
@@ -208,7 +208,7 @@ func TestCreateUser_NetworkError(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.CreateUserRequest{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}
@@ -234,12 +234,12 @@ func TestGetUserById_Success(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.GetUserByIdRequest{
-		Id: 1234253231,
+		ID: 1234253231,
 	}
 
 	expectedResp := &userpb.GetUserByIdResponse{
-		Id:      int64(1234253231),
-		LoginId: "testuser",
+		ID:      int64(1234253231),
+		LoginID: "testuser",
 		Email:   "test@example.com",
 		Status:  1,
 	}
@@ -251,8 +251,8 @@ func TestGetUserById_Success(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, expectedResp, resp)
-	assert.Equal(t, int64(1234253231), resp.Id)
-	assert.Equal(t, "testuser", resp.LoginId)
+	assert.Equal(t, int64(1234253231), resp.ID)
+	assert.Equal(t, "testuser", resp.LoginID)
 	assert.Equal(t, "test@example.com", resp.Email)
 	mockClient.AssertExpectations(t)
 }
@@ -265,7 +265,7 @@ func TestGetUserById_NotFound(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.GetUserByIdRequest{
-		Id: 1234253232,
+		ID: 1234253232,
 	}
 
 	expectedErr := status.Error(codes.NotFound, "user not found")
@@ -289,7 +289,7 @@ func TestGetUserById_EmptyId(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.GetUserByIdRequest{
-		Id: 0,
+		ID: 0,
 	}
 
 	expectedErr := status.Error(codes.InvalidArgument, "id is required")
@@ -305,51 +305,51 @@ func TestGetUserById_EmptyId(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
-// TestGetUserByLoginId_Success tests successful retrieval by login ID
-func TestGetUserByLoginId_Success(t *testing.T) {
+// TestGetUserByLoginID_Success tests successful retrieval by login ID
+func TestGetUserByLoginID_Success(t *testing.T) {
 	// Arrange
 	mockClient := new(MockUserServiceClient)
 	userGRPC := NewUserGRPC(mockClient)
 
 	ctx := context.Background()
-	req := &userpb.GetUserByLoginIdRequest{
-		LoginId: "testuser",
+	req := &userpb.GetUserByLoginIDRequest{
+		LoginID: "testuser",
 	}
 
-	expectedResp := &userpb.GetUserByLoginIdResponse{
-		Id:      int64(1234253233),
-		LoginId: "testuser",
+	expectedResp := &userpb.GetUserByLoginIDResponse{
+		ID:      int64(1234253233),
+		LoginID: "testuser",
 		Email:   "test@example.com",
 		Status:  1,
 	}
-	mockClient.On("GetUserByLoginId", ctx, req).Return(expectedResp, nil)
+	mockClient.On("GetUserByLoginID", ctx, req).Return(expectedResp, nil)
 
 	// Act
-	resp, err := userGRPC.GetUserByLoginId(ctx, req)
+	resp, err := userGRPC.GetUserByLoginID(ctx, req)
 
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, expectedResp, resp)
-	assert.Equal(t, "testuser", resp.LoginId)
+	assert.Equal(t, "testuser", resp.LoginID)
 	mockClient.AssertExpectations(t)
 }
 
-// TestGetUserByLoginId_NotFound tests user not found by login ID
-func TestGetUserByLoginId_NotFound(t *testing.T) {
+// TestGetUserByLoginID_NotFound tests user not found by login ID
+func TestGetUserByLoginID_NotFound(t *testing.T) {
 	// Arrange
 	mockClient := new(MockUserServiceClient)
 	userGRPC := NewUserGRPC(mockClient)
 
 	ctx := context.Background()
-	req := &userpb.GetUserByLoginIdRequest{
-		LoginId: "nonexistentuser",
+	req := &userpb.GetUserByLoginIDRequest{
+		LoginID: "nonexistentuser",
 	}
 
 	expectedErr := status.Error(codes.NotFound, "user not found")
-	mockClient.On("GetUserByLoginId", ctx, req).Return((*userpb.GetUserByLoginIdResponse)(nil), expectedErr)
+	mockClient.On("GetUserByLoginID", ctx, req).Return((*userpb.GetUserByLoginIDResponse)(nil), expectedErr)
 
 	// Act
-	resp, err := userGRPC.GetUserByLoginId(ctx, req)
+	resp, err := userGRPC.GetUserByLoginID(ctx, req)
 
 	// Assert
 	assert.Error(t, err)
@@ -358,22 +358,22 @@ func TestGetUserByLoginId_NotFound(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
-// TestGetUserByLoginId_EmptyLoginId tests empty login ID validation
-func TestGetUserByLoginId_EmptyLoginId(t *testing.T) {
+// TestGetUserByLoginID_EmptyLoginID tests empty login ID validation
+func TestGetUserByLoginID_EmptyLoginID(t *testing.T) {
 	// Arrange
 	mockClient := new(MockUserServiceClient)
 	userGRPC := NewUserGRPC(mockClient)
 
 	ctx := context.Background()
-	req := &userpb.GetUserByLoginIdRequest{
-		LoginId: "",
+	req := &userpb.GetUserByLoginIDRequest{
+		LoginID: "",
 	}
 
-	expectedErr := status.Error(codes.InvalidArgument, "loginId is required")
-	mockClient.On("GetUserByLoginId", ctx, req).Return((*userpb.GetUserByLoginIdResponse)(nil), expectedErr)
+	expectedErr := status.Error(codes.InvalidArgument, "LoginID is required")
+	mockClient.On("GetUserByLoginID", ctx, req).Return((*userpb.GetUserByLoginIDResponse)(nil), expectedErr)
 
 	// Act
-	resp, err := userGRPC.GetUserByLoginId(ctx, req)
+	resp, err := userGRPC.GetUserByLoginID(ctx, req)
 
 	// Assert
 	assert.Error(t, err)
@@ -402,7 +402,7 @@ func TestUserGRPC_ContextCancellation(t *testing.T) {
 	cancel() // Cancel immediately
 
 	req := &userpb.CreateUserRequest{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}
@@ -431,10 +431,10 @@ func TestUserGRPC_ConcurrentCalls(t *testing.T) {
 
 	// Setup expectations for concurrent calls
 	for i := 0; i < numCalls; i++ {
-		req := &userpb.GetUserByIdRequest{Id: int64(1234253235)}
+		req := &userpb.GetUserByIdRequest{ID: int64(1234253235)}
 		resp := &userpb.GetUserByIdResponse{
-			Id:      int64(1234253235),
-			LoginId: "testuser",
+			ID:      int64(1234253235),
+			LoginID: "testuser",
 			Email:   "test@example.com",
 		}
 		mockClient.On("GetUserById", ctx, req).Return(resp, nil).Once()
@@ -444,7 +444,7 @@ func TestUserGRPC_ConcurrentCalls(t *testing.T) {
 	done := make(chan bool, numCalls)
 	for i := 0; i < numCalls; i++ {
 		go func() {
-			req := &userpb.GetUserByIdRequest{Id: int64(1234253235)}
+			req := &userpb.GetUserByIdRequest{ID: int64(1234253235)}
 			resp, err := userGRPC.GetUserById(ctx, req)
 			assert.NoError(t, err)
 			assert.NotNil(t, resp)
@@ -469,7 +469,7 @@ func TestUserGRPC_TransientError(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.CreateUserRequest{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}
@@ -497,7 +497,7 @@ func TestUserGRPC_InternalServerError(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.CreateUserRequest{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}
@@ -523,7 +523,7 @@ func TestUserGRPC_PermissionDenied(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.GetUserByIdRequest{
-		Id: int64(1234253236),
+		ID: int64(1234253236),
 	}
 
 	expectedErr := status.Error(codes.PermissionDenied, "permission denied")
@@ -547,7 +547,7 @@ func TestUserGRPC_UnknownError(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.CreateUserRequest{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}
@@ -571,7 +571,7 @@ func BenchmarkCreateUser(b *testing.B) {
 
 	ctx := context.Background()
 	req := &userpb.CreateUserRequest{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}
@@ -589,10 +589,10 @@ func BenchmarkGetUserById(b *testing.B) {
 	userGRPC := NewUserGRPC(mockClient)
 
 	ctx := context.Background()
-	req := &userpb.GetUserByIdRequest{Id: int64(1234253237)}
+	req := &userpb.GetUserByIdRequest{ID: int64(1234253237)}
 	resp := &userpb.GetUserByIdResponse{
-		Id:      int64(1234253237),
-		LoginId: "testuser",
+		ID:      int64(1234253237),
+		LoginID: "testuser",
 		Email:   "test@example.com",
 	}
 

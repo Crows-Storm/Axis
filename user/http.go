@@ -36,7 +36,7 @@ func (H HTTPServer) CreateUser(c *gin.Context) {
 
 func (H HTTPServer) Disable(c *gin.Context, id int64) {
 	result, err := H.app.Commands.DisableUser.Handle(c, command.DisableUserCommand{
-		Id: id,
+		ID: id,
 	})
 	if err != nil {
 		server.ErrorWithCode(c, server.CodeBadRequest)
@@ -90,7 +90,7 @@ func (H HTTPServer) UserStatusAnalysis(c *gin.Context) {
 
 func (H HTTPServer) SoftDeleteUser(c *gin.Context, id int64) {
 	_, err := H.app.Commands.SoftDeleteUser.Handle(c, command.SoftDeleteUserCommand{
-		Id: id,
+		ID: id,
 	})
 	if err != nil {
 		server.ErrorWithCode(c, server.CodeInternalServerError)
@@ -105,7 +105,7 @@ func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
 		server.ErrorWithCode(c, server.CodeBadRequest)
 		return
 	}
-	sessionHolderID, _ := val.(int64)
+	sessionHolderID, _ := val.(uint64)
 
 	// bind to domain object
 	var req domain.User
@@ -113,8 +113,8 @@ func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
 		server.ErrorWithCode(c, server.CodeBadRequest)
 		return
 	}
-	// setting holder Id to updated
-	req.Id = sessionHolderID
+	// setting holder ID to updated
+	req.ID = sessionHolderID
 	// just have email and id in req now
 	_, err := H.app.Commands.UpdateUser.Handle(c, command.UpdateUserCommand{
 		User: &req, // from db by request context get user id to query a user domain
@@ -147,7 +147,7 @@ func (H HTTPServer) GetCurrentUserInfo(c *gin.Context) {
 	}
 	sessionHolderID, _ := val.(int64)
 	result, err := H.app.Queries.GetUser.Handle(c, query.GetUserQuery{
-		Id: sessionHolderID,
+		ID: sessionHolderID,
 	})
 	if err != nil {
 		server.ErrorWithCode(c, server.CodeInternalServerError)
@@ -158,7 +158,7 @@ func (H HTTPServer) GetCurrentUserInfo(c *gin.Context) {
 
 func (H HTTPServer) GetUserInfoById(c *gin.Context, id int64) {
 	result, err := H.app.Queries.GetUser.Handle(c, query.GetUserQuery{
-		Id: id,
+		ID: id,
 	})
 	if err != nil {
 		server.ErrorWithCode(c, server.CodeInternalServerError)

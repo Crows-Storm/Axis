@@ -8,7 +8,7 @@ import (
 )
 
 type DisableUserCommand struct {
-	Id int64 `form:"id" binding:"required"`
+	ID uint64 `form:"id" binding:"required"`
 }
 
 type DisableUserCommandHandler decorator.CommandHandler[DisableUserCommand, struct{}]
@@ -37,7 +37,7 @@ func (c disableUserCommandHandler) Handle(ctx context.Context, cmd DisableUserCo
 	// - Send a welcome email (recorded in the task table)
 	// - Create an audit log
 	// If any operation fails, the entire transaction will be rolled back.
-	err := c.userRepo.Disable(ctx, cmd.Id)
+	err := c.userRepo.Disable(ctx, cmd.ID)
 	if err != nil {
 		return struct{}{}, err
 	}

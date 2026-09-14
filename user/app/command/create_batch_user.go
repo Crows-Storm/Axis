@@ -22,18 +22,18 @@ func (c CreateBatchUserCommand) Validate() error {
 		return fmt.Errorf("cannot create more than 100 users at once")
 	}
 
-	// Check for duplicate LoginId and Email.
-	loginIdMap := make(map[string]bool)
+	// Check for duplicate LoginID and Email.
+	LoginIDMap := make(map[string]bool)
 	emailMap := make(map[string]bool)
 
 	for _, user := range c.Items {
-		if loginIdMap[user.LoginId] {
-			return fmt.Errorf("duplicate login_id: %s", user.LoginId)
+		if LoginIDMap[user.LoginID] {
+			return fmt.Errorf("duplicate login_id: %s", user.LoginID)
 		}
 		if emailMap[user.Email] {
 			return fmt.Errorf("duplicate email: %s", user.Email)
 		}
-		loginIdMap[user.LoginId] = true
+		LoginIDMap[user.LoginID] = true
 		emailMap[user.Email] = true
 	}
 
@@ -41,7 +41,7 @@ func (c CreateBatchUserCommand) Validate() error {
 }
 
 type CreateUserItem struct {
-	LoginId  string
+	LoginID  string
 	Password string
 	Email    string
 }
@@ -74,8 +74,8 @@ func (c createBatchUserCommandHandler) Handle(ctx context.Context, cmd CreateBat
 	users := make([]*domain.User, 0, len(cmd.Items))
 	for _, item := range cmd.Items {
 		users = append(users, &domain.User{
-			Id:         util.GenerateID(),
-			LoginId:    item.LoginId,
+			ID:         util.GenerateID(),
+			LoginID:    item.LoginID,
 			Password:   item.Password,
 			Email:      item.Email,
 			CreateTime: time.Now(),

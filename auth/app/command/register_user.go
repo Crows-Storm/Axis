@@ -10,9 +10,18 @@ import (
 )
 
 type RegisterUserCommand struct {
-	LoginId  string
-	Password string
-	Email    string
+	LoginID  string `json:"login_id"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+}
+
+func (c RegisterUserCommand) Validate() error {
+	if c.LoginID == "" || c.Password == "" || c.Email == "" {
+		return decorator.CommandExecutedError{
+			Msg: "LoginID, password, and email cannot be empty.",
+		}
+	}
+	return nil
 }
 
 type RegisterUserCommandHandler decorator.CommandHandler[RegisterUserCommand, struct{}]
@@ -37,15 +46,10 @@ type registerUserCommandHandler struct {
 }
 
 func (r registerUserCommandHandler) Handle(ctx context.Context, cmd RegisterUserCommand) (struct{}, error) {
-	if cmd.LoginId == "" || cmd.Password == "" || cmd.Email == "" {
-		return struct{}{}, decorator.CommandExecutedError{
-			Msg: "LoginId, password, and email cannot be empty.",
-		}
-	}
 
 	// call user grpc interface to create user
 	_, err := r.userService.CreateUser(ctx, &userpb.CreateUserRequest{
-		LoginId:  cmd.LoginId,
+		LoginID:  cmd.LoginID,
 		Password: cmd.Password,
 		Email:    cmd.Email,
 	})

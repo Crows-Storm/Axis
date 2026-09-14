@@ -16,10 +16,10 @@ func init() {
 }
 
 // GenerateID Generate a primary key ID for int64
-func GenerateID() int64 {
+func GenerateID() uint64 {
 	id, err := Flake.NextID()
 	if err != nil {
 		panic(err)
 	}
-	return int64(id)
+	return id
 }

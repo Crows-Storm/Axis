@@ -54,7 +54,7 @@ type AuthClaims struct {
 	Token    string          `json:"token"` // jwt token
 	UserId   int64           `json:"userId"`
 	Username string          `json:"username"`
-	LoginId  string          `json:"loginId"`
+	LoginID  string          `json:"LoginID"`
 	Email    string          `json:"email"`
 	Status   int8            `json:"status"`
 	Role     domain.HoldRole `json:"role"` // a user just can hold a role
@@ -82,7 +82,7 @@ func (j *JWTIssuer) Issue(ctx context.Context, principal *domain.Principal) (*To
 		},
 		UserId:      principal.UserId,
 		Username:    principal.Username,
-		LoginId:     principal.LoginId,
+		LoginID:     principal.LoginID,
 		Email:       principal.Email,
 		Status:      principal.Status,
 		Role:        principal.Role,
@@ -187,7 +187,7 @@ func (j *JWTIssuer) Parse(ctx context.Context, accessToken string) (*domain.Prin
 	return domain.NewPrincipal(
 		claims.UserId,      // UserId
 		claims.Username,    // Username
-		claims.LoginId,     // LoginId
+		claims.LoginID,     // LoginID
 		claims.Email,       // Email
 		claims.Status,      // Status
 		claims.Role,        // Role

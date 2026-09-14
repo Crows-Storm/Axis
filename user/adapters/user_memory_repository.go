@@ -15,7 +15,7 @@ package adapters
 //	store []*domain.User
 //}
 //
-//func (m *MemoryUserRepository) ExistsWithTransaction(ctx context.Context, id int64, loginId string, email string) (bool, error) {
+//func (m *MemoryUserRepository) ExistsWithTransaction(ctx context.Context, id int64, LoginID string, email string) (bool, error) {
 //	//TODO implement me
 //	panic("implement me")
 //}
@@ -30,8 +30,8 @@ package adapters
 //
 //	// init a data to memory repository use in test
 //	infoStore = append(infoStore, &domain.User{
-//		Id:         123,
-//		LoginId:    "Sander",
+//		ID:         123,
+//		LoginID:    "Sander",
 //		Password:   "ddferewevrewwdwdwdwe2fwfwefwfwfwewqd",
 //		Email:      "sanderQiu@hotmail.com",
 //		Status:     1,
@@ -57,7 +57,7 @@ package adapters
 //	}
 //
 //	for _, v := range m.store {
-//		if v.Id == id {
+//		if v.ID == id {
 //			logrus.Debugf("memory_user_repo_get || id=%d || res=%+v", id, *v)
 //			return v, nil
 //		}
@@ -70,8 +70,8 @@ package adapters
 //	defer m.lock.Unlock()
 //
 //	newUser := &domain.User{
-//		Id:         user.Id,
-//		LoginId:    user.LoginId,
+//		ID:         user.ID,
+//		LoginID:    user.LoginID,
 //		Password:   user.Password,
 //		Email:      user.Email,
 //		Status:     1, // use db default
@@ -94,12 +94,12 @@ package adapters
 //	defer m.lock.Unlock()
 //
 //	if len(m.store) == 0 {
-//		return domain.NotFoundError{UserId: user.Id}
+//		return domain.NotFoundError{UserId: user.ID}
 //	}
 //
 //	found := false
 //	for i, v := range m.store {
-//		if v.Id == user.Id {
+//		if v.ID == user.ID {
 //			found = true
 //			updatedUser, err := updateFun(ctx, user)
 //			if err != nil {
@@ -110,7 +110,7 @@ package adapters
 //	}
 //
 //	if found {
-//		return domain.NotFoundError{UserId: user.Id}
+//		return domain.NotFoundError{UserId: user.ID}
 //	}
 //	return nil
 //

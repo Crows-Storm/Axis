@@ -7,14 +7,14 @@ import (
 )
 
 type PasswordCredential struct {
-	LoginId  string `json:"LoginId" binding:"required"`
+	LoginID  string `json:"LoginID" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
 func (c *PasswordCredential) GetLoginType() security.LoginType { return security.LoginTypePassword }
 func (c *PasswordCredential) Validate() error {
-	if c.LoginId == "" {
-		return errors.New("LoginId is required")
+	if c.LoginID == "" {
+		return errors.New("LoginID is required")
 	}
 	if len(c.Password) < 6 {
 		return errors.New("password must be at least 6 characters")
@@ -70,7 +70,7 @@ func (c *QRCodeCredential) Validate() error {
 
 type RegisterCredential struct {
 	Inner      security.Credential // Embedded actual authentication credentials (CodeCredential / OAuthCredential)
-	LoginId    string              `json:"LoginId"`
+	LoginID    string              `json:"LoginID"`
 	Nickname   string              `json:"nickname"`
 	AgreeTerms bool                `json:"agree_terms"`
 }

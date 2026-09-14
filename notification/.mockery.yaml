@@ -1,0 +1,10 @@
+with-expecter: true
+disable-version-string: true
+filename: "mock_{{.InterfaceName | snakecase}}.go"
+outpkg: "{{.PackageName}}mock"
+dir: "{{.InterfaceDir}}/mocks"
+all: false
+issue-845-fix: true
+
+packages:
+  {}

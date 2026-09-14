@@ -16,7 +16,7 @@ func NewGRPCServer(app app.Application) *GRPCServer {
 	return &GRPCServer{app: app}
 }
 
-func (G GRPCServer) GetWalletByUserId(ctx context.Context, request *walletpb.GetWalletByUserIdRequest) (*walletpb.GetWalletByUserIdResponse, error) {
+func (G GRPCServer) GetWalletByUserId(ctx context.Context, request *walletpb.GetWalletByUserIDRequest) (*walletpb.GetWalletByUserIDResponse, error) {
 	//TODO implement me
 	panic("implement me")
 }

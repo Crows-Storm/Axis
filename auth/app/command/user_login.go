@@ -75,16 +75,16 @@ func (h loginCommandHandler) Handle(ctx context.Context, cmd LoginCommand) (Logi
 
 	// Obtaining user information for constructing the principal
 	userInfo, err := h.userService.GetUserById(ctx, &userpb.GetUserByIdRequest{
-		Id: identity.UserId,
+		ID: identity.UserId,
 	})
 
 	// TODO: Need to query Role and Permissions from Role and Permission domain, domain query redis
 	holdRole := domain.HoldRole{}
 	// builder principal
 	principal := &domain.Principal{
-		UserId:      userInfo.Id,
+		UserId:      userInfo.ID,
 		Username:    "",
-		LoginId:     userInfo.LoginId,
+		LoginID:     userInfo.LoginID,
 		Email:       userInfo.Email,
 		Status:      int8(userInfo.Status),
 		Role:        holdRole,

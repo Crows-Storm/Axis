@@ -31,7 +31,7 @@ func TestUserMariaRepository_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		user := &domain.User{
-			LoginId:  "testuser",
+			LoginID:  "testuser",
 			Password: "hashed_password",
 			Email:    "test@example.com",
 		}
@@ -39,8 +39,8 @@ func TestUserMariaRepository_Create(t *testing.T) {
 		createdUser, err := repo.Create(ctx, user)
 
 		assert.NoError(t, err)
-		assert.NotZero(t, createdUser.Id)
-		assert.Equal(t, "testuser", createdUser.LoginId)
+		assert.NotZero(t, createdUser.ID)
+		assert.Equal(t, "testuser", createdUser.LoginID)
 		assert.Equal(t, "test@example.com", createdUser.Email)
 		assert.Equal(t, int8(1), createdUser.Status)
 		assert.Equal(t, int8(0), createdUser.Deleted)
@@ -48,18 +48,18 @@ func TestUserMariaRepository_Create(t *testing.T) {
 		assert.False(t, createdUser.UpdateTime.IsZero())
 	})
 
-	t.Run("duplicate_loginId", func(t *testing.T) {
+	t.Run("duplicate_LoginID", func(t *testing.T) {
 		user1 := &domain.User{
-			LoginId:  "duplicate",
+			LoginID:  "duplicate",
 			Password: "password",
 			Email:    "user1@example.com",
 		}
 		_, err := repo.Create(ctx, user1)
 		require.NoError(t, err)
 
-		// 尝试创建相同 LoginId 的用户
+		// 尝试创建相同 LoginID 的用户
 		user2 := &domain.User{
-			LoginId:  "duplicate",
+			LoginID:  "duplicate",
 			Password: "password",
 			Email:    "user2@example.com",
 		}
@@ -71,7 +71,7 @@ func TestUserMariaRepository_Create(t *testing.T) {
 
 	t.Run("duplicate_email", func(t *testing.T) {
 		user1 := &domain.User{
-			LoginId:  "user1",
+			LoginID:  "user1",
 			Password: "password",
 			Email:    "duplicate@example.com",
 		}
@@ -80,7 +80,7 @@ func TestUserMariaRepository_Create(t *testing.T) {
 
 		// 尝试创建相同 Email 的用户
 		user2 := &domain.User{
-			LoginId:  "user2",
+			LoginID:  "user2",
 			Password: "password",
 			Email:    "duplicate@example.com",
 		}
@@ -102,7 +102,7 @@ func TestUserMariaRepository_GetInfo(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		// 创建用户
 		user := &domain.User{
-			LoginId:  "getuser",
+			LoginID:  "getuser",
 			Password: "password",
 			Email:    "get@example.com",
 		}
@@ -110,11 +110,11 @@ func TestUserMariaRepository_GetInfo(t *testing.T) {
 		require.NoError(t, err)
 
 		// 查询用户
-		found, err := repo.GetInfo(created.Id)
+		found, err := repo.GetInfo(created.ID)
 
 		assert.NoError(t, err)
-		assert.Equal(t, created.Id, found.Id)
-		assert.Equal(t, "getuser", found.LoginId)
+		assert.Equal(t, created.ID, found.ID)
+		assert.Equal(t, "getuser", found.LoginID)
 		assert.Equal(t, "get@example.com", found.Email)
 	})
 
@@ -129,18 +129,18 @@ func TestUserMariaRepository_GetInfo(t *testing.T) {
 	t.Run("soft_deleted_user_not_found", func(t *testing.T) {
 		// 创建并软删除用户
 		user := &domain.User{
-			LoginId:  "deleteduser",
+			LoginID:  "deleteduser",
 			Password: "password",
 			Email:    "deleted@example.com",
 		}
 		created, err := repo.Create(ctx, user)
 		require.NoError(t, err)
 
-		err = repo.SoftDelete(ctx, created.Id)
+		err = repo.SoftDelete(ctx, created.ID)
 		require.NoError(t, err)
 
 		// 查询已删除的用户
-		_, err = repo.GetInfo(created.Id)
+		_, err = repo.GetInfo(created.ID)
 
 		assert.Error(t, err)
 		_, ok := err.(domain.NotFoundError)
@@ -148,8 +148,8 @@ func TestUserMariaRepository_GetInfo(t *testing.T) {
 	})
 }
 
-// TestUserMariaRepository_GetByLoginId 测试根据 LoginId 查询
-func TestUserMariaRepository_GetByLoginId(t *testing.T) {
+// TestUserMariaRepository_GetByLoginID 测试根据 LoginID 查询
+func TestUserMariaRepository_GetByLoginID(t *testing.T) {
 	st := setupTestDB(t)
 	defer st.Close()
 
@@ -158,21 +158,21 @@ func TestUserMariaRepository_GetByLoginId(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		user := &domain.User{
-			LoginId:  "loginuser",
+			LoginID:  "loginuser",
 			Password: "password",
 			Email:    "login@example.com",
 		}
 		_, err := repo.Create(ctx, user)
 		require.NoError(t, err)
 
-		found, err := repo.GetByLoginId(ctx, "loginuser")
+		found, err := repo.GetByLoginID(ctx, "loginuser")
 
 		assert.NoError(t, err)
-		assert.Equal(t, "loginuser", found.LoginId)
+		assert.Equal(t, "loginuser", found.LoginID)
 	})
 
 	t.Run("not_found", func(t *testing.T) {
-		_, err := repo.GetByLoginId(ctx, "nonexistent")
+		_, err := repo.GetByLoginID(ctx, "nonexistent")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
@@ -190,7 +190,7 @@ func TestUserMariaRepository_Update(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		// 创建用户
 		user := &domain.User{
-			LoginId:  "updateuser",
+			LoginID:  "updateuser",
 			Password: "password",
 			Email:    "update@example.com",
 		}
@@ -198,7 +198,7 @@ func TestUserMariaRepository_Update(t *testing.T) {
 		require.NoError(t, err)
 
 		// 更新用户
-		err = repo.Update(ctx, &domain.User{Id: created.Id}, func(ctx context.Context, u *domain.User) (*domain.User, error) {
+		err = repo.Update(ctx, &domain.User{ID: created.ID}, func(ctx context.Context, u *domain.User) (*domain.User, error) {
 			u.Email = "newemail@example.com"
 			return u, nil
 		})
@@ -206,13 +206,13 @@ func TestUserMariaRepository_Update(t *testing.T) {
 		assert.NoError(t, err)
 
 		// 验证更新
-		updated, err := repo.GetInfo(created.Id)
+		updated, err := repo.GetInfo(created.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "newemail@example.com", updated.Email)
 	})
 
 	t.Run("user_not_found", func(t *testing.T) {
-		err := repo.Update(ctx, &domain.User{Id: 99999}, func(ctx context.Context, u *domain.User) (*domain.User, error) {
+		err := repo.Update(ctx, &domain.User{ID: 99999}, func(ctx context.Context, u *domain.User) (*domain.User, error) {
 			return u, nil
 		})
 
@@ -223,14 +223,14 @@ func TestUserMariaRepository_Update(t *testing.T) {
 
 	t.Run("update_function_error", func(t *testing.T) {
 		user := &domain.User{
-			LoginId:  "erroruser",
+			LoginID:  "erroruser",
 			Password: "password",
 			Email:    "error@example.com",
 		}
 		created, err := repo.Create(ctx, user)
 		require.NoError(t, err)
 
-		err = repo.Update(ctx, &domain.User{Id: created.Id}, func(ctx context.Context, u *domain.User) (*domain.User, error) {
+		err = repo.Update(ctx, &domain.User{ID: created.ID}, func(ctx context.Context, u *domain.User) (*domain.User, error) {
 			return nil, assert.AnError
 		})
 
@@ -249,7 +249,7 @@ func TestUserMariaRepository_UpdateStatus(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		user := &domain.User{
-			LoginId:  "statususer",
+			LoginID:  "statususer",
 			Password: "password",
 			Email:    "status@example.com",
 		}
@@ -257,11 +257,11 @@ func TestUserMariaRepository_UpdateStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		// 更新状态为 0（停用）
-		err = repo.UpdateStatus(ctx, created.Id, 0)
+		err = repo.UpdateStatus(ctx, created.ID, 0)
 		assert.NoError(t, err)
 
 		// 验证状态
-		updated, err := repo.GetInfo(created.Id)
+		updated, err := repo.GetInfo(created.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int8(0), updated.Status)
 	})
@@ -285,7 +285,7 @@ func TestUserMariaRepository_SoftDelete(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		user := &domain.User{
-			LoginId:  "deleteuser",
+			LoginID:  "deleteuser",
 			Password: "password",
 			Email:    "delete@example.com",
 		}
@@ -293,11 +293,11 @@ func TestUserMariaRepository_SoftDelete(t *testing.T) {
 		require.NoError(t, err)
 
 		// 软删除
-		err = repo.SoftDelete(ctx, created.Id)
+		err = repo.SoftDelete(ctx, created.ID)
 		assert.NoError(t, err)
 
 		// 验证无法查询到
-		_, err = repo.GetInfo(created.Id)
+		_, err = repo.GetInfo(created.ID)
 		assert.Error(t, err)
 	})
 
@@ -321,7 +321,7 @@ func TestUserMariaRepository_List(t *testing.T) {
 	// 创建测试数据
 	for i := 1; i <= 25; i++ {
 		user := &domain.User{
-			LoginId:  "listuser" + string(strconv.Itoa(i)),
+			LoginID:  "listuser" + string(strconv.Itoa(i)),
 			Password: "password",
 			Email:    "list" + string(strconv.Itoa(i)) + "@example.com",
 		}
@@ -388,18 +388,18 @@ func TestUserMariaRepository_CreateBatch(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		users := []*domain.User{
-			{LoginId: "batch1", Password: "pass", Email: "batch1@example.com"},
-			{LoginId: "batch2", Password: "pass", Email: "batch2@example.com"},
-			{LoginId: "batch3", Password: "pass", Email: "batch3@example.com"},
+			{LoginID: "batch1", Password: "pass", Email: "batch1@example.com"},
+			{LoginID: "batch2", Password: "pass", Email: "batch2@example.com"},
+			{LoginID: "batch3", Password: "pass", Email: "batch3@example.com"},
 		}
 
 		err := repo.CreateBatch(ctx, users)
 		assert.NoError(t, err)
 
 		// 验证创建成功
-		found, err := repo.GetByLoginId(ctx, "batch1")
+		found, err := repo.GetByLoginID(ctx, "batch1")
 		assert.NoError(t, err)
-		assert.Equal(t, "batch1", found.LoginId)
+		assert.Equal(t, "batch1", found.LoginID)
 	})
 
 	t.Run("empty_slice", func(t *testing.T) {
@@ -419,7 +419,7 @@ func TestUserMariaRepository_GetStats(t *testing.T) {
 	// 创建测试数据
 	for i := 1; i <= 10; i++ {
 		user := &domain.User{
-			LoginId:  "statsuser" + string(strconv.Itoa(i)),
+			LoginID:  "statsuser" + string(strconv.Itoa(i)),
 			Password: "password",
 			Email:    "stats" + string(strconv.Itoa(i)) + "@example.com",
 		}
@@ -428,7 +428,7 @@ func TestUserMariaRepository_GetStats(t *testing.T) {
 
 		// 删除部分用户
 		if i <= 3 {
-			err = repo.SoftDelete(ctx, created.Id)
+			err = repo.SoftDelete(ctx, created.ID)
 			require.NoError(t, err)
 		}
 	}
@@ -455,7 +455,7 @@ func TestUserMariaRepository_ConcurrentCreate(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func(index int) {
 			user := &domain.User{
-				LoginId:  "concurrent" + string(strconv.Itoa(index)),
+				LoginID:  "concurrent" + string(strconv.Itoa(index)),
 				Password: "password",
 				Email:    "concurrent" + string(strconv.Itoa(index)) + "@example.com",
 			}
@@ -502,7 +502,7 @@ func BenchmarkUserMariaRepository_Create(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		user := &domain.User{
-			LoginId:  "benchuser" + string(strconv.Itoa(i)),
+			LoginID:  "benchuser" + string(strconv.Itoa(i)),
 			Password: "password",
 			Email:    "bench" + string(strconv.Itoa(i)) + "@example.com",
 		}
@@ -523,7 +523,7 @@ func BenchmarkUserMariaRepository_GetInfo(b *testing.B) {
 
 	// 创建测试用户
 	user := &domain.User{
-		LoginId:  "benchgetuser",
+		LoginID:  "benchgetuser",
 		Password: "password",
 		Email:    "benchget@example.com",
 	}
@@ -531,6 +531,6 @@ func BenchmarkUserMariaRepository_GetInfo(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = repo.GetInfo(created.Id)
+		_, _ = repo.GetInfo(created.ID)
 	}
 }

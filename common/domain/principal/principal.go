@@ -3,7 +3,7 @@ package principal
 type Principal struct {
 	UserId      int64
 	Username    string
-	LoginId     string
+	LoginID     string
 	Email       string
 	Status      int8
 	Role        HoldRole            // a user just can hold a role
@@ -13,11 +13,11 @@ type Principal struct {
 }
 
 // NewPrincipal The Permissions field is missing because it is hot-updated and stored in Redis.
-func NewPrincipal(userId int64, username string, loginId string, email string, status int8, role HoldRole, authChannel string, loginFrom string, extra map[string]string) *Principal {
+func NewPrincipal(userId int64, username string, LoginID string, email string, status int8, role HoldRole, authChannel string, loginFrom string, extra map[string]string) *Principal {
 	return &Principal{
 		UserId:      userId,
 		Username:    username,
-		LoginId:     loginId,
+		LoginID:     LoginID,
 		Email:       email,
 		Status:      status,
 		Role:        role,

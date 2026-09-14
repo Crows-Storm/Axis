@@ -7,15 +7,23 @@ import (
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/decorator"
+	commuser "github.com/Crows-Storm/Axis/common/domain/user"
 	"github.com/Crows-Storm/Axis/common/util"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 	"github.com/Crows-Storm/Axis/user/utils"
 )
 
 type CreateUserCommand struct {
-	LoginId  string
-	Password string
-	Email    string
+	LoginID  string `json:"login_id"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+}
+
+func (c CreateUserCommand) Validate() error {
+	if c.LoginID == "" || c.Password == "" || c.Email == "" {
+		return decorator.CommandExecutedError{Msg: decorator.InvalidCommand.Error()}
+	}
+	return nil
 }
 
 type CreateUserCommandHandler decorator.CommandHandler[CreateUserCommand, struct{}]
@@ -50,16 +58,16 @@ func (c createUserCommandHandler) Handle(ctx context.Context, cmd CreateUserComm
 		logger.Errorf("hashing password error: %v", err)
 		return struct{}{}, errors.New("invalid password")
 	}
-	exist, err := c.userRepo.ExistsWithTransaction(ctx, 0, cmd.LoginId, "")
+	exist, err := c.userRepo.ExistsWithTransaction(ctx, 0, cmd.LoginID, "")
 	if err != nil {
 		return struct{}{}, err
 	}
 	if exist {
-		return struct{}{}, errors.New("user already exists")
+		return struct{}{}, commuser.ErrUserAlreadyExists
 	}
 	_, err = c.userRepo.Create(ctx, &domain.User{
-		Id:         util.GenerateID(),
-		LoginId:    cmd.LoginId,
+		ID:         util.GenerateID(),
+		LoginID:    cmd.LoginID,
 		Password:   psw, // is H1 + salt to storage
 		Email:      cmd.Email,
 		CreateTime: time.Now(),

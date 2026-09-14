@@ -1,0 +1,34 @@
+with-expecter: true
+disable-version-string: true
+filename: "mock_{{.InterfaceName | snakecase}}.go"
+outpkg: "{{.PackageName}}mock"
+dir: "{{.InterfaceDir}}/mocks"
+all: false
+issue-845-fix: true
+
+packages:
+  # gRPC Server pb package
+  github.com/Crows-Storm/Axis/common/genproto/authpb:
+    interfaces:
+      AuthServiceServer: {}
+  github.com/Crows-Storm/Axis/common/genproto/ledgerpb:
+    interfaces:
+      LedgerServiceServer: {}
+  github.com/Crows-Storm/Axis/common/genproto/userpb:
+    interfaces:
+      UserServiceServer: {}
+  github.com/Crows-Storm/Axis/common/genproto/walletpb:
+    interfaces:
+      WalletServiceServer: {}
+
+  # JWT Token Cache Repository
+  github.com/Crows-Storm/Axis/common/jwt:
+    interfaces:
+      TokenRepository: {}
+
+  # decorator Command
+  github.com/Crows-Storm/Axis/common/decorator:
+    interfaces:
+      CommandHandler: {}
+      QueryHandler: {}
+      MetricsClient: {}

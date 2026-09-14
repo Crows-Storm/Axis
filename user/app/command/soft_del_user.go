@@ -8,11 +8,11 @@ import (
 )
 
 type SoftDeleteUserCommand struct {
-	Id int64
+	ID uint64
 }
 
 func (s *SoftDeleteUserCommand) Validate() error {
-	if s.Id <= 0 {
+	if s.ID <= 0 {
 		return decorator.CommandExecutedError{Msg: "Invalid user ID"}
 	}
 	return nil
@@ -39,7 +39,7 @@ func NewSoftDeleteUserCommandHandler(
 
 // Handle implementation of `SoftDeleteUserCommand` returns void
 func (c softDeleteUserCommandHandler) Handle(ctx context.Context, cmd SoftDeleteUserCommand) (struct{}, error) {
-	err := c.userRepo.SoftDelete(ctx, cmd.Id)
+	err := c.userRepo.SoftDelete(ctx, cmd.ID)
 	if err != nil {
 		return struct{}{}, err
 	}

@@ -8,9 +8,9 @@ import (
 )
 
 type UserExists struct {
-	Id      int64
-	LoginId string
-	Email   string
+	ID      uint64 `json:"id"`
+	LoginID string `json:"login_id"`
+	Email   string `json:"email"`
 }
 
 type UserExistsHandler decorator.QueryHandler[UserExists, bool]
@@ -33,7 +33,7 @@ func NewUserExistsHandler(
 }
 
 func (g userExistsHandler) Handle(ctx context.Context, query UserExists) (bool, error) {
-	yes, err := g.userRepo.ExistsWithTransaction(ctx, query.Id, query.LoginId, query.Email)
+	yes, err := g.userRepo.ExistsWithTransaction(ctx, query.ID, query.LoginID, query.Email)
 	if err != nil {
 		return false, err
 	}

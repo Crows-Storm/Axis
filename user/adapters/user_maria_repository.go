@@ -16,14 +16,16 @@ import (
 )
 
 type UserModel struct {
-	Id         int64     `gorm:"column:id;unsigned;primaryKey;"`
-	LoginId    string    `gorm:"column:login_id;uniqueIndex;type:varchar(50);not null"`
+	ID         uint64    `gorm:"column:id;primaryKey;autoIncrement:false"`
+	Username   string    `gorm:"column:username;type:varchar(50);not null"`
+	LoginID    string    `gorm:"column:login_id;type:varchar(50);not null"`
 	Password   string    `gorm:"column:password;type:varchar(255);not null"`
-	Email      string    `gorm:"column:email;uniqueIndex;type:varchar(100);not null"`
-	Status     int8      `gorm:"column:status;type:tinyint;default:1;not null;comment:'1:normal 0:disable'"`
-	Deleted    int8      `gorm:"column:deleted;type:tinyint;default:0;not null;index;comment:'0:not deleted 1:deleted'"`
-	CreateTime time.Time `gorm:"column:create_time;type:datetime;not null;autoCreateTime"`
-	UpdateTime time.Time `gorm:"column:update_time;type:datetime;not null;autoUpdateTime"`
+	Type       string    `gorm:"column:type;type:varchar(255);not null"`
+	Email      string    `gorm:"column:email;type:varchar(100);not null"`
+	Status     int8      `gorm:"column:status;type:tinyint;default:1"`
+	Deleted    int8      `gorm:"column:deleted;type:tinyint;default:0"`
+	CreateTime time.Time `gorm:"column:create_time;type:datetime;default:CURRENT_TIMESTAMP"`
+	UpdateTime time.Time `gorm:"column:update_time;type:datetime;default:CURRENT_TIMESTAMP;autoUpdateTime"`
 }
 
 func (*UserModel) TableName() string {
@@ -32,8 +34,8 @@ func (*UserModel) TableName() string {
 
 func (m *UserModel) toDomain() *domain.User {
 	return &domain.User{
-		Id:         m.Id,
-		LoginId:    m.LoginId,
+		ID:         m.ID,
+		LoginID:    m.LoginID,
 		Password:   m.Password,
 		Email:      m.Email,
 		Status:     m.Status,
@@ -45,8 +47,8 @@ func (m *UserModel) toDomain() *domain.User {
 
 func fromDomain(user *domain.User) *UserModel {
 	return &UserModel{
-		Id:         user.Id,
-		LoginId:    user.LoginId,
+		ID:         user.ID,
+		LoginID:    user.LoginID,
 		Password:   user.Password,
 		Email:      user.Email,
 		Status:     user.Status,
@@ -78,7 +80,7 @@ func (u *UserMariaRepository) autoMigrate() error {
 	return u.store.DB().AutoMigrate(&UserModel{})
 }
 
-func (u *UserMariaRepository) GetInfo(id int64) (*domain.User, error) {
+func (u *UserMariaRepository) GetInfo(id uint64) (*domain.User, error) {
 	u.lock.RLock()
 	defer u.lock.RUnlock()
 
@@ -98,20 +100,20 @@ func (u *UserMariaRepository) GetInfo(id int64) (*domain.User, error) {
 	return userModel.toDomain(), nil
 }
 
-func (u *UserMariaRepository) GetByLoginId(ctx context.Context, loginId string) (*domain.User, error) {
+func (u *UserMariaRepository) GetByLoginID(ctx context.Context, loginID string) (*domain.User, error) {
 	u.lock.RLock()
 	defer u.lock.RUnlock()
 
 	var userModel UserModel
 	result := u.store.DB().WithContext(ctx).
-		Where("login_id = ? AND deleted = 0", loginId).
+		Where("login_id = ? AND deleted = 0", loginID).
 		First(&userModel)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("user not found: %s", loginId)
+			return nil, fmt.Errorf("user not found: %s", loginID)
 		}
-		logger.WithError(result.Error).WithField("login_id", loginId).Error("Failed to get user by login_id")
+		logger.WithError(result.Error).WithField("login_id", loginID).Error("Failed to get user by login_id")
 		return nil, fmt.Errorf("failed to get user by login_id: %w", result.Error)
 	}
 
@@ -130,12 +132,12 @@ func (u *UserMariaRepository) Create(ctx context.Context, user *domain.User) (*d
 	err := u.store.Transaction(func(tx *gorm.DB) error {
 		var count int64
 		if err := tx.Model(&UserModel{}).
-			Where("login_id = ? AND deleted = 0", user.LoginId).
+			Where("login_id = ? AND deleted = 0", user.LoginID).
 			Count(&count).Error; err != nil {
-			return fmt.Errorf("failed to check loginId existence: %w", err)
+			return fmt.Errorf("failed to check LoginID existence: %w", err)
 		}
 		if count > 0 {
-			return fmt.Errorf("loginId already exists: %s", user.LoginId)
+			return fmt.Errorf("LoginID already exists: %s", user.LoginID)
 		}
 
 		if err := tx.Model(&UserModel{}).
@@ -152,8 +154,8 @@ func (u *UserMariaRepository) Create(ctx context.Context, user *domain.User) (*d
 		}
 
 		logger.WithFields(logrus.Fields{
-			"user_id":       userModel.Id,
-			"login_id":      userModel.LoginId,
+			"user_id":       userModel.ID,
+			"login_id":      userModel.LoginID,
 			"email":         userModel.Email,
 			"rows_affected": tx.RowsAffected,
 		}).Info("User created successfully")
@@ -163,7 +165,7 @@ func (u *UserMariaRepository) Create(ctx context.Context, user *domain.User) (*d
 
 	if err != nil {
 		logger.WithError(err).WithFields(logrus.Fields{
-			"login_id": user.LoginId,
+			"login_id": user.LoginID,
 			"email":    user.Email,
 		}).Error("Failed to create user in transaction")
 		return nil, err
@@ -212,12 +214,12 @@ func (u *UserMariaRepository) Update(
 		var userModel UserModel
 		result := tx.WithContext(ctx).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("id = ? AND deleted = 0", user.Id).
+			Where("id = ? AND deleted = 0", user.ID).
 			First(&userModel)
 
 		if result.Error != nil {
 			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-				return domain.NotFoundError{UserId: user.Id}
+				return domain.NotFoundError{UserId: user.ID}
 			}
 			return fmt.Errorf("failed to lock user: %w", result.Error)
 		}
@@ -234,13 +236,13 @@ func (u *UserMariaRepository) Update(
 
 		if err := tx.WithContext(ctx).
 			Model(&UserModel{}).
-			Where("id = ?", updatedUser.Id).
+			Where("id = ?", updatedUser.ID).
 			Updates(updatedModel).Error; err != nil {
 			return fmt.Errorf("failed to update user: %w", err)
 		}
 
 		logger.WithFields(logrus.Fields{
-			"user_id":       updatedUser.Id,
+			"user_id":       updatedUser.ID,
 			"rows_affected": tx.RowsAffected,
 		}).Info("User updated successfully")
 
@@ -248,7 +250,7 @@ func (u *UserMariaRepository) Update(
 	})
 }
 
-func (u *UserMariaRepository) Disable(ctx context.Context, userId int64) error {
+func (u *UserMariaRepository) Disable(ctx context.Context, userId uint64) error {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 
@@ -276,7 +278,7 @@ func (u *UserMariaRepository) Disable(ctx context.Context, userId int64) error {
 	return nil
 }
 
-func (u *UserMariaRepository) SoftDelete(ctx context.Context, userId int64) error {
+func (u *UserMariaRepository) SoftDelete(ctx context.Context, userId uint64) error {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 
@@ -300,8 +302,8 @@ func (u *UserMariaRepository) SoftDelete(ctx context.Context, userId int64) erro
 	return nil
 }
 
-func (u *UserMariaRepository) GetPasswordByLoginId(ctx context.Context, loginId string) string {
-	user, err := u.GetByLoginId(ctx, loginId)
+func (u *UserMariaRepository) GetPasswordByLoginID(ctx context.Context, loginID string) string {
+	user, err := u.GetByLoginID(ctx, loginID)
 	if err != nil {
 		return ""
 	}
@@ -321,7 +323,7 @@ func (u *UserMariaRepository) GetPasswordByLoginId(ctx context.Context, loginId 
 //
 //}
 
-func (u *UserMariaRepository) ExistsWithTransaction(ctx context.Context, id int64, loginId string, email string) (bool, error) {
+func (u *UserMariaRepository) ExistsWithTransaction(ctx context.Context, id uint64, LoginID string, email string) (bool, error) {
 	var count int64
 
 	var err error
@@ -332,9 +334,9 @@ func (u *UserMariaRepository) ExistsWithTransaction(ctx context.Context, id int6
 			Count(&count).Error
 	}
 
-	if loginId != "" {
+	if LoginID != "" {
 		err = u.store.DB().Model(&UserModel{}).
-			Where("login_id = ? AND deleted = 0", loginId).
+			Where("login_id = ? AND deleted = 0", LoginID).
 			Count(&count).Error
 	}
 
@@ -357,9 +359,9 @@ func (u *UserMariaRepository) GetStats(ctx context.Context) (map[string]interfac
 	defer u.lock.RUnlock()
 
 	var stats struct {
-		TotalUsers   int64 `gorm:"column:total_users"`
-		ActiveUsers  int64 `gorm:"column:active_users"`
-		DeletedUsers int64 `gorm:"column:deleted_users"`
+		TotalUsers   uint64 `gorm:"column:total_users"`
+		ActiveUsers  uint64 `gorm:"column:active_users"`
+		DeletedUsers uint64 `gorm:"column:deleted_users"`
 	}
 
 	err := u.store.DB().WithContext(ctx).Raw(`

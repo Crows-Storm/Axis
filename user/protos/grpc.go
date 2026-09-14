@@ -23,7 +23,7 @@ func NewGRPCServer(app app.Application) *GRPCServer {
 
 func (G GRPCServer) CreateUser(ctx context.Context, request *userpb.CreateUserRequest) (*emptypb.Empty, error) {
 	_, err := G.app.Commands.CreateUser.Handle(ctx, command.CreateUserCommand{
-		LoginId:  request.LoginId,
+		LoginID:  request.LoginID,
 		Password: request.Password,
 		Email:    request.Email,
 	})
@@ -35,7 +35,7 @@ func (G GRPCServer) CreateUser(ctx context.Context, request *userpb.CreateUserRe
 
 func (G GRPCServer) GetUserById(ctx context.Context, request *userpb.GetUserByIdRequest) (*userpb.GetUserByIdResponse, error) {
 	result, err := G.app.Queries.GetUser.Handle(ctx, query.GetUserQuery{
-		Id: request.Id,
+		ID: request.Id,
 	})
 	if err != nil {
 		return nil, err
@@ -45,24 +45,24 @@ func (G GRPCServer) GetUserById(ctx context.Context, request *userpb.GetUserById
 	//fmt.Print(p)
 
 	return &userpb.GetUserByIdResponse{
-		Id:      result.Id,
-		LoginId: result.LoginId,
+		Id:      result.ID,
+		LoginID: result.LoginID,
 		Email:   result.Email,
 		Status:  int32(result.Status),
 	}, nil
 }
 
-func (G GRPCServer) GetUserByLoginId(ctx context.Context, request *userpb.GetUserByLoginIdRequest) (*userpb.GetUserByLoginIdResponse, error) {
+func (G GRPCServer) GetUserByLoginID(ctx context.Context, request *userpb.GetUserByLoginIDRequest) (*userpb.GetUserByLoginIDResponse, error) {
 	result, err := G.app.Queries.GetUser.Handle(ctx, query.GetUserQuery{
-		Id:      0,
-		LoginId: request.LoginId,
+		ID:      0,
+		LoginID: request.LoginID,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &userpb.GetUserByLoginIdResponse{
-		Id:      result.Id,
-		LoginId: result.LoginId,
+	return &userpb.GetUserByLoginIDResponse{
+		Id:      result.ID,
+		LoginID: result.LoginID,
 		Email:   result.Email,
 		Status:  int32(result.Status),
 	}, nil
@@ -75,7 +75,7 @@ func (G GRPCServer) CreateAndBindIdentity(ctx context.Context, request *userpb.C
 
 func (G GRPCServer) VerifyPassword(ctx context.Context, request *userpb.VerifyPasswordRequest) (*wrapperspb.BoolValue, error) {
 	ok, err := G.app.Queries.VerifyLogin.Handle(ctx, query.VerifyLogin{
-		LoginId:   request.LoginId,
+		LoginID:   request.LoginID,
 		Password:  request.Password,
 		RequestId: grpcx.RequestIDFromContext(ctx),
 	})

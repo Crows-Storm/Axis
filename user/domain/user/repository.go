@@ -6,11 +6,11 @@ import (
 )
 
 type Repository interface {
-	GetInfo(id int64) (*User, error)
-	GetByLoginId(ctx context.Context, loginId string) (*User, error)
-	ExistsWithTransaction(ctx context.Context, id int64, loginId string, email string) (bool, error)
+	GetInfo(id uint64) (*User, error)
+	GetByLoginID(ctx context.Context, loginID string) (*User, error)
+	ExistsWithTransaction(ctx context.Context, id uint64, loginID string, email string) (bool, error)
 	GetStats(ctx context.Context) (map[string]interface{}, error)
-	GetPasswordByLoginId(ctx context.Context, loginId string) string
+	GetPasswordByLoginID(ctx context.Context, loginID string) string
 
 	Create(ctx context.Context, user *User) (*User, error)
 	CreateBatch(ctx context.Context, users []*User) error
@@ -19,14 +19,14 @@ type Repository interface {
 		user *User,
 		updateFun func(context.Context, *User) (*User, error),
 	) error
-	Disable(ctx context.Context, userId int64) error
+	Disable(ctx context.Context, id uint64) error
 
 	// Dangerous operation
-	SoftDelete(ctx context.Context, userId int64) error
+	SoftDelete(ctx context.Context, id uint64) error
 }
 
 type NotFoundError struct {
-	UserId int64
+	UserId uint64
 }
 
 func (e NotFoundError) Error() string {

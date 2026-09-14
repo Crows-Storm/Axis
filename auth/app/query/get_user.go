@@ -10,19 +10,19 @@ import (
 )
 
 type GetUserQuery struct {
-	Id int64
+	ID int64
 }
 
 func (g GetUserQuery) Validate() error {
-	if g.Id <= 0 {
+	if g.ID <= 0 {
 		return errors.New("invalid id")
 	}
 	return nil
 }
 
 type GetUserQueryResult struct {
-	Id      int64
-	LoginId string
+	ID      int64
+	LoginID string
 	Email   string
 	Status  int32
 }
@@ -52,15 +52,15 @@ func (g getUserQueryHandler) Handle(ctx context.Context, query GetUserQuery) (Ge
 	}
 
 	u, err := g.userService.GetUserById(ctx, &userpb.GetUserByIdRequest{
-		Id: query.Id,
+		ID: query.ID,
 	})
 
 	if err != nil {
 		return GetUserQueryResult{}, err
 	}
 	return GetUserQueryResult{
-		Id:      u.Id,
-		LoginId: u.LoginId,
+		ID:      u.ID,
+		LoginID: u.LoginID,
 		Email:   u.Email,
 		Status:  u.Status,
 	}, err

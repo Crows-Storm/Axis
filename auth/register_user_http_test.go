@@ -53,7 +53,7 @@ func TestRegister_Success(t *testing.T) {
 	router := setupTestRouter(mockHandler)
 
 	requestBody := command.RegisterUserCommand{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}
@@ -85,7 +85,7 @@ func TestRegister_InvalidJSON(t *testing.T) {
 	mockHandler := new(MockRegisterUserHandler)
 	router := setupTestRouter(mockHandler)
 
-	invalidJSON := `{"loginId": "testuser", "password": "Test@1234", "email": }`
+	invalidJSON := `{"LoginID": "testuser", "password": "Test@1234", "email": }`
 	req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBufferString(invalidJSON))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -114,17 +114,17 @@ func TestRegister_MissingRequiredFields(t *testing.T) {
 		description string
 	}{
 		{
-			name: "missing_loginId",
+			name: "missing_LoginID",
 			requestBody: map[string]string{
 				"password": "Test@1234",
 				"email":    "test@example.com",
 			},
-			description: "LoginId is required",
+			description: "LoginID is required",
 		},
 		{
 			name: "missing_password",
 			requestBody: map[string]string{
-				"loginId": "testuser",
+				"LoginID": "testuser",
 				"email":   "test@example.com",
 			},
 			description: "Password is required",
@@ -132,7 +132,7 @@ func TestRegister_MissingRequiredFields(t *testing.T) {
 		{
 			name: "missing_email",
 			requestBody: map[string]string{
-				"loginId":  "testuser",
+				"LoginID":  "testuser",
 				"password": "Test@1234",
 			},
 			description: "Email is required",
@@ -179,7 +179,7 @@ func TestRegister_HandlerError(t *testing.T) {
 	router := setupTestRouter(mockHandler)
 
 	requestBody := command.RegisterUserCommand{
-		LoginId:  "existinguser",
+		LoginID:  "existinguser",
 		Password: "Test@1234",
 		Email:    "existing@example.com",
 	}
@@ -214,7 +214,7 @@ func TestRegister_WrongContentType(t *testing.T) {
 	router := setupTestRouter(mockHandler)
 
 	requestBody := command.RegisterUserCommand{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}
@@ -245,7 +245,7 @@ func TestRegister_LargePayload(t *testing.T) {
 	// 创建一个超大的 payload
 	largePassword := string(make([]byte, 10000)) // 10KB password
 	requestBody := command.RegisterUserCommand{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: largePassword,
 		Email:    "test@example.com",
 	}
@@ -271,7 +271,7 @@ func TestRegister_ConcurrentRequests(t *testing.T) {
 	router := setupTestRouter(mockHandler)
 
 	requestBody := command.RegisterUserCommand{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}
@@ -309,7 +309,7 @@ func BenchmarkRegister_Success(b *testing.B) {
 	router := setupTestRouter(mockHandler)
 
 	requestBody := command.RegisterUserCommand{
-		LoginId:  "testuser",
+		LoginID:  "testuser",
 		Password: "Test@1234",
 		Email:    "test@example.com",
 	}

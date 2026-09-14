@@ -1,0 +1,25 @@
+with-expecter: true
+disable-version-string: true
+filename: "mock_{{.InterfaceName | snakecase}}.go"
+structname: "Mock{{.InterfaceName}}"
+outpkg: "{{.PackageName}}"
+dir: "{{.InterfaceDir}}"
+all: false
+issue-845-fix: true
+
+packages:
+  # Infrastructure layer
+  github.com/Crows-Storm/Axis/auth/domain/principal:
+    interfaces:
+      Repository: {}
+  github.com/Crows-Storm/Axis/auth/domain/role:
+    interfaces:
+      Repository: {}
+  github.com/Crows-Storm/Axis/auth/domain/menu:
+    interfaces:
+      Repository: {}
+
+    # Protos layer: HTTP/OpenAPI ServerInterface
+  github.com/Crows-Storm/Axis/auth/protos:
+    interfaces:
+      ServerInterface: {}

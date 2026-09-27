@@ -16,6 +16,7 @@ type Commands struct {
 	UpdateUser       command.UpdateUserCommandHandler
 	SoftDeleteUser   command.SoftDeleteUserCommandHandler
 	DisableUser      command.DisableUserCommandHandler
+	Activation       command.ActivationUserCommandHandler
 }
 
 type Queries struct {

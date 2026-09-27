@@ -5,7 +5,7 @@ CREATE TABLE sys_user (
                           password VARCHAR(255) NOT NULL COMMENT 'password',
                           type VARCHAR(255) NOT NULL COMMENT 'android/ios/website/other(github/google/wx/...)',
                           email VARCHAR(100) NOT NULL ,
-                          status TINYINT DEFAULT 1 COMMENT 'status: 0: pending 1: activated 2: disabled',
+                          status TINYINT DEFAULT 1 COMMENT 'status: 0: disabled 1: activated',
                           deleted TINYINT DEFAULT 0 COMMENT '逻辑删除: 0未删除 1已删除',
                           create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
                           update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

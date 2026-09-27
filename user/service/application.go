@@ -27,10 +27,13 @@ func NewApplication(
 	ctx context.Context,
 	deps ApplicationDependencies,
 ) (app.Application, func()) {
-	userRepo := createUserRepository(deps.Store)
+	dbRepo := createUserRepository(deps.Store)
 	metricsClient := metrics.TodoMetrics{}
 
-	application := newApplication(ctx, userRepo, deps.CacheClient, metricsClient)
+	// password compose
+	hasher := domain.NewHash256PasswordHelper()
+
+	application := newApplication(ctx, dbRepo, deps.CacheClient, metricsClient, hasher)
 
 	cleanup := func() {
 		// some close func
@@ -47,22 +50,24 @@ func createUserRepository(st *store.Store) domain.Repository {
 // newApplication Builder Application layer（Commands + Queries）
 func newApplication(
 	_ context.Context,
-	userRepo domain.Repository,
+	dbRepo domain.Repository,
 	_ cache.RueidisClient,
 	metricsClient decorator.MetricsClient,
+	hasher domain.PasswordHasher,
 ) app.Application {
 	return app.Application{
 		Commands: app.Commands{
-			CreateUser:     command.NewCreateUserCommandHandler(userRepo, metricsClient),
-			UpdateUser:     command.NewUpdateUserCommandHandler(userRepo, metricsClient),
-			SoftDeleteUser: command.NewSoftDeleteUserCommandHandler(userRepo, metricsClient),
-			DisableUser:    command.NewDisableUserCommandHandler(userRepo, metricsClient),
+			CreateUser:     command.NewCreateUserCommandHandler(dbRepo, metricsClient, hasher),
+			UpdateUser:     command.NewUpdateUserCommandHandler(dbRepo, metricsClient),
+			SoftDeleteUser: command.NewSoftDeleteUserCommandHandler(dbRepo, metricsClient),
+			DisableUser:    command.NewDisableUserCommandHandler(dbRepo, metricsClient),
+			Activation:     command.NewActivationUserCommandHandler(dbRepo, metricsClient),
 		},
 		Queries: app.Queries{
-			GetUser:            query.NewGetUserQueryHandler(userRepo, metricsClient),
-			UserExists:         query.NewUserExistsHandler(userRepo, metricsClient),
-			UserStatusAnalysis: query.NewUserStatusAnalysisHandler(userRepo, metricsClient),
-			VerifyLogin:        query.NewVerifyLoginHandler(userRepo, metricsClient),
+			GetUser:            query.NewGetUserQueryHandler(dbRepo, metricsClient),
+			UserExists:         query.NewUserExistsHandler(dbRepo, metricsClient),
+			UserStatusAnalysis: query.NewUserStatusAnalysisHandler(dbRepo, metricsClient),
+			VerifyLogin:        query.NewVerifyLoginHandler(dbRepo, metricsClient, hasher),
 		},
 	}
 }

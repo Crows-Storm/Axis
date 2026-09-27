@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
+	commuser "github.com/Crows-Storm/Axis/common/domain/user"
 	"github.com/Crows-Storm/Axis/common/server/store"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 	"github.com/sirupsen/logrus"
@@ -34,27 +35,23 @@ func (*UserModel) TableName() string {
 
 func (m *UserModel) toDomain() *domain.User {
 	return &domain.User{
-		ID:         m.ID,
-		LoginID:    m.LoginID,
-		Password:   m.Password,
-		Email:      m.Email,
-		Status:     m.Status,
-		Deleted:    m.Deleted,
-		CreateTime: m.CreateTime,
-		UpdateTime: m.UpdateTime,
+		ID:       m.ID,
+		LoginID:  m.LoginID,
+		Password: m.Password,
+		Email:    m.Email,
+		Status:   commuser.Status(m.Status),
+		Deleted:  m.Deleted,
 	}
 }
 
 func fromDomain(user *domain.User) *UserModel {
 	return &UserModel{
-		ID:         user.ID,
-		LoginID:    user.LoginID,
-		Password:   user.Password,
-		Email:      user.Email,
-		Status:     user.Status,
-		Deleted:    user.Deleted,
-		CreateTime: user.CreateTime,
-		UpdateTime: user.UpdateTime,
+		ID:       user.ID,
+		LoginID:  user.LoginID,
+		Password: user.Password,
+		Email:    user.Email,
+		Status:   int8(user.Status),
+		Deleted:  user.Deleted,
 	}
 }
 
@@ -85,8 +82,8 @@ func (u *UserMariaRepository) GetInfo(id uint64) (*domain.User, error) {
 	defer u.lock.RUnlock()
 
 	var userModel UserModel
-	result := u.store.DB().
-		Where("id = ? AND deleted = 0", id).
+	result := u.store.DB().Scopes(domain.NotDeleted).
+		Where("id = ?", id).
 		First(&userModel)
 
 	if result.Error != nil {
@@ -105,8 +102,8 @@ func (u *UserMariaRepository) GetByLoginID(ctx context.Context, loginID string) 
 	defer u.lock.RUnlock()
 
 	var userModel UserModel
-	result := u.store.DB().WithContext(ctx).
-		Where("login_id = ? AND deleted = 0", loginID).
+	result := u.store.DB().WithContext(ctx).Scopes(domain.NotDeleted).
+		Where("login_id = ?", loginID).
 		First(&userModel)
 
 	if result.Error != nil {
@@ -131,8 +128,8 @@ func (u *UserMariaRepository) Create(ctx context.Context, user *domain.User) (*d
 
 	err := u.store.Transaction(func(tx *gorm.DB) error {
 		var count int64
-		if err := tx.Model(&UserModel{}).
-			Where("login_id = ? AND deleted = 0", user.LoginID).
+		if err := tx.Model(&UserModel{}).Scopes(domain.NotDeleted).
+			Where("login_id = ?", user.LoginID).
 			Count(&count).Error; err != nil {
 			return fmt.Errorf("failed to check LoginID existence: %w", err)
 		}
@@ -140,8 +137,8 @@ func (u *UserMariaRepository) Create(ctx context.Context, user *domain.User) (*d
 			return fmt.Errorf("LoginID already exists: %s", user.LoginID)
 		}
 
-		if err := tx.Model(&UserModel{}).
-			Where("email = ? AND deleted = 0", user.Email).
+		if err := tx.Model(&UserModel{}).Scopes(domain.NotDeleted).
+			Where("email = ?", user.Email).
 			Count(&count).Error; err != nil {
 			return fmt.Errorf("failed to check email existence: %w", err)
 		}
@@ -186,9 +183,7 @@ func (u *UserMariaRepository) CreateBatch(ctx context.Context, users []*domain.U
 		userModels := make([]*UserModel, 0, len(users))
 
 		for _, user := range users {
-			user.Create()
-			user.Status = 1
-			user.Deleted = 0
+			//user.Create()
 			userModels = append(userModels, fromDomain(user))
 		}
 
@@ -212,9 +207,9 @@ func (u *UserMariaRepository) Update(
 
 	return u.store.Transaction(func(tx *gorm.DB) error {
 		var userModel UserModel
-		result := tx.WithContext(ctx).
+		result := tx.WithContext(ctx).Scopes(domain.NotDeleted).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("id = ? AND deleted = 0", user.ID).
+			Where("id = ?", user.ID).
 			First(&userModel)
 
 		if result.Error != nil {
@@ -231,11 +226,10 @@ func (u *UserMariaRepository) Update(
 			return fmt.Errorf("update function failed: %w", err)
 		}
 
-		updatedUser.UpdateTime = time.Now()
 		updatedModel := fromDomain(updatedUser)
 
 		if err := tx.WithContext(ctx).
-			Model(&UserModel{}).
+			Model(&UserModel{}).Scopes(domain.NotDeleted).
 			Where("id = ?", updatedUser.ID).
 			Updates(updatedModel).Error; err != nil {
 			return fmt.Errorf("failed to update user: %w", err)
@@ -250,15 +244,16 @@ func (u *UserMariaRepository) Update(
 	})
 }
 
-func (u *UserMariaRepository) Disable(ctx context.Context, userId uint64) error {
+func (u *UserMariaRepository) StatusChange(ctx context.Context, user *domain.User) error {
+	var userId = user.ID
 	u.lock.Lock()
 	defer u.lock.Unlock()
 
 	result := u.store.DB().WithContext(ctx).
-		Model(&UserModel{}).
-		Where("id = ? AND deleted = 0", userId).
+		Model(&UserModel{}).Scopes(domain.NotDeleted).
+		Where("id = ?", userId).
 		Updates(map[string]interface{}{
-			"status":      0, // setting status to 0: disable
+			"status":      user.Status, // set by user status
 			"update_time": time.Now(),
 		})
 
@@ -283,8 +278,8 @@ func (u *UserMariaRepository) SoftDelete(ctx context.Context, userId uint64) err
 	defer u.lock.Unlock()
 
 	result := u.store.DB().WithContext(ctx).
-		Model(&UserModel{}).
-		Where("id = ? AND deleted = 0", userId).
+		Model(&UserModel{}).Scopes(domain.NotDeleted).
+		Where("id = ?", userId).
 		Updates(map[string]interface{}{
 			"deleted":     1, // setting deleted to 1: deleted
 			"update_time": time.Now(),
@@ -310,7 +305,7 @@ func (u *UserMariaRepository) GetPasswordByLoginID(ctx context.Context, loginID 
 	return user.Password
 }
 
-//func (u *UserMariaRepository) Page(ctx context.Context, args pagination.Args) (*pagination.Connection[*domain.User], error) {
+//func (u *UserMariaRepository) Page(ctx contextx.Context, args pagination.Args) (*pagination.Connection[*domain.User], error) {
 //	connection, err := pagination.FetchConnection[UserModel](u.store.DB(), u.store.DB().WithContext(ctx).Model(&UserModel{}), pagination.DefaultConfig(), args)
 //	if err != nil {
 //		return nil, err
@@ -329,20 +324,20 @@ func (u *UserMariaRepository) ExistsWithTransaction(ctx context.Context, id uint
 	var err error
 
 	if id > 0 {
-		err = u.store.DB().Model(&UserModel{}).
-			Where("id = ? AND deleted = 0", id).
+		err = u.store.DB().Model(&UserModel{}).Scopes(domain.NotDeleted).
+			Where("id = ?", id).
 			Count(&count).Error
 	}
 
 	if LoginID != "" {
-		err = u.store.DB().Model(&UserModel{}).
-			Where("login_id = ? AND deleted = 0", LoginID).
+		err = u.store.DB().Model(&UserModel{}).Scopes(domain.NotDeleted).
+			Where("login_id = ?", LoginID).
 			Count(&count).Error
 	}
 
 	if email != "" {
-		err = u.store.DB().Model(&UserModel{}).
-			Where("email = ? AND deleted = 0", email).
+		err = u.store.DB().Model(&UserModel{}).Scopes(domain.NotDeleted).
+			Where("email = ?", email).
 			Count(&count).Error
 	}
 

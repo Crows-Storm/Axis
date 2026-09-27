@@ -11,6 +11,7 @@ packages:
     # if want more interface: "(Repository|otherInterface)$"
     interfaces:
       Repository: {}
+      PasswordHasher: {}
 
   github.com/Crows-Storm/Axis/user/protos:
     interfaces:

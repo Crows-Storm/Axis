@@ -1,5 +1,11 @@
 package audit
 
-func main() {
+import (
+	"github.com/gin-gonic/gin"
+)
+
+// HTTP Server 启动
+func setupHTTPServer() {
+	router := gin.Default()
 
 }

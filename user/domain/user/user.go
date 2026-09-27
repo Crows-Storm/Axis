@@ -1,20 +1,22 @@
 package user
 
 import (
-	"time"
+	"github.com/Crows-Storm/Axis/common/domain"
+	"github.com/Crows-Storm/Axis/common/domain/event"
+	commuser "github.com/Crows-Storm/Axis/common/domain/user"
+	"github.com/Crows-Storm/Axis/common/domain/user/events"
 )
 
 type User struct {
+	domain.AggregateRoot
+
 	ID       uint64 `json:"id"`
 	LoginID  string `json:"LoginID"`
 	Password string `json:"-"`
 	Email    string `json:"email"`
 	//Profile  Profile `json:"profile"`
-	Status  int8 `json:"status"`
-	Deleted int8 `json:"deleted"`
-
-	CreateTime time.Time `json:"createTime"`
-	UpdateTime time.Time `json:"updateTime"`
+	Status  commuser.Status `json:"-"`
+	Deleted int8            `json:"-"`
 }
 
 // Desensitization password
@@ -22,6 +24,7 @@ type User struct {
 //	u.password = ""
 //}
 
+// TODO: nned design
 // Profile is User basic profit
 type Profile struct {
 	Language     int8  // CN: 1  EN: 2
@@ -38,7 +41,17 @@ func DefaultProfile() Profile {
 	}
 }
 
-func (u *User) Create() {
-	u.CreateTime = time.Now()
-	u.UpdateTime = time.Now()
+func (u *User) ApplyEvent(evt event.Message) error {
+	switch e := evt.(type) {
+	case *events.UserCreatedMessage:
+		u.ID = e.AggregateID
+		u.LoginID = e.LoginID
+		u.Email = e.Email
+		u.Status = commuser.Activated // User Created Message default status is Activated
+		u.Deleted = 0
+	case *events.UserStatusMessage:
+		u.ID = e.AggregateID
+		u.Status = e.Status
+	}
+	return nil
 }

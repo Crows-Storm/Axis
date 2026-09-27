@@ -3,7 +3,6 @@ package command
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/Crows-Storm/Axis/common/decorator"
 	"github.com/Crows-Storm/Axis/common/util"
@@ -74,12 +73,10 @@ func (c createBatchUserCommandHandler) Handle(ctx context.Context, cmd CreateBat
 	users := make([]*domain.User, 0, len(cmd.Items))
 	for _, item := range cmd.Items {
 		users = append(users, &domain.User{
-			ID:         util.GenerateID(),
-			LoginID:    item.LoginID,
-			Password:   item.Password,
-			Email:      item.Email,
-			CreateTime: time.Now(),
-			UpdateTime: time.Now(),
+			ID:       util.GenerateFlakeID(),
+			LoginID:  item.LoginID,
+			Password: item.Password,
+			Email:    item.Email,
 		})
 	}
 
@@ -88,7 +85,7 @@ func (c createBatchUserCommandHandler) Handle(ctx context.Context, cmd CreateBat
 		return struct{}{}, err
 	}
 
-	// You can send domain events here to add other operations, such as:
+	// You can send domain event here to add other operations, such as:
 	// - Create a user configuration record
 	// - Send a welcome email (recorded in the task table)
 	// - Create an audit log

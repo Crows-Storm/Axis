@@ -11,6 +11,9 @@ import (
 	"fmt"
 	"io"
 	"time"
+
+	"github.com/Crows-Storm/Axis/common/config/logger"
+	"github.com/Crows-Storm/Axis/common/domain/user"
 )
 
 var (
@@ -24,12 +27,14 @@ var encryptionKey = []byte("LIFE_IS_FUCKER_MOVIE!=HE_TOLD_ME")
 func HashForStorage(h1Hex string) (string, error) {
 	block, err := aes.NewCipher(encryptionKey)
 	if err != nil {
-		return "", fmt.Errorf("create cipher: %w", err)
+		logger.Debug(fmt.Errorf("create cipher: %w", err))
+		return "", user.ErrInvalidPassword
 	}
 
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", fmt.Errorf("create GCM: %w", err)
+		logger.Debug(fmt.Errorf("create GCM: %w", err))
+		return "", user.ErrInvalidPassword
 	}
 
 	nonce := make([]byte, gcm.NonceSize())
@@ -39,7 +44,8 @@ func HashForStorage(h1Hex string) (string, error) {
 
 	h1Bytes, err := hex.DecodeString(h1Hex)
 	if err != nil {
-		return "", fmt.Errorf("decode H1: %w", err)
+		logger.Debug(fmt.Errorf("decode H1: %w", err))
+		return "", user.ErrInvalidPassword
 	}
 
 	ciphertext := gcm.Seal(nonce, nonce, h1Bytes, nil)
@@ -50,7 +56,8 @@ func HashForStorage(h1Hex string) (string, error) {
 func VerifyPassword(storedEncrypted, clientHash, requestID string) error {
 	h1Bytes, err := decryptH1(storedEncrypted)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrDecryptionFailed, err)
+		logger.Debug(fmt.Errorf("decrypt H1: %w", err))
+		return ErrDecryptionFailed
 	}
 	h1Hex := hex.EncodeToString(h1Bytes)
 
@@ -77,29 +84,34 @@ func VerifyPassword(storedEncrypted, clientHash, requestID string) error {
 func decryptH1(encryptedHex string) ([]byte, error) {
 	ciphertext, err := hex.DecodeString(encryptedHex)
 	if err != nil {
-		return nil, fmt.Errorf("decode ciphertext: %w", err)
+		logger.Debug(fmt.Errorf("decode ciphertext: %w", err))
+		return nil, ErrPasswordMismatch
 	}
 
 	block, err := aes.NewCipher(encryptionKey)
 	if err != nil {
-		return nil, fmt.Errorf("create cipher: %w", err)
+		logger.Debug(fmt.Errorf("create cipher: %w", err))
+		return nil, ErrPasswordMismatch
 	}
 
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, fmt.Errorf("create GCM: %w", err)
+		logger.Debug(fmt.Errorf("create GCM: %w", err))
+		return nil, ErrPasswordMismatch
 	}
 
 	nonceSize := gcm.NonceSize()
 	if len(ciphertext) < nonceSize {
-		return nil, errors.New("ciphertext too short")
+		logger.Debug(fmt.Errorf("ciphertext too short"))
+		return nil, ErrPasswordMismatch
 	}
 
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
 
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return nil, fmt.Errorf("decrypt: %w", err)
+		logger.Debug(fmt.Errorf("decrypt ciphertext: %w", err))
+		return nil, ErrPasswordMismatch
 	}
 
 	return plaintext, nil

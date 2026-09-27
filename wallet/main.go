@@ -108,9 +108,10 @@ func main() {
 	}
 
 	// register self to consul
+	instanceId := fmt.Sprintf("%s-%s-%d", serviceName, cfg.ServerHost, cfg.GRPCPort)
 	registrar := registry.NewRegistrar(consulClient, registry.ServiceInfo{
 		Name: serviceName,
-		ID:   fmt.Sprintf("%s-%s-%d", serviceName, cfg.ServerHost, cfg.GRPCPort),
+		ID:   instanceId,
 		Host: cfg.ServerHost,
 		Port: cfg.GRPCPort,
 	})
@@ -122,12 +123,11 @@ func main() {
 			BaseURL:     "/api",
 			Middlewares: nil,
 			ErrorHandler: func(c *gin.Context, err error, statusCode int) {
-				// use Framework http code, and Vague system error
 				server.ErrorWithHttpCode(c, server.CodeInternalServerError, statusCode)
 			},
 		})
 		logger.Info("HTTP routes registered successfully")
-	})
+	}, server.WithHTTPInstanceID(instanceId))
 
 	grpcErrCh := server.RunGRPCServerWithLifecycle(
 		ctx,
@@ -136,6 +136,7 @@ func main() {
 			walletpb.RegisterWalletServiceServer(server, walletServiceServer)
 		},
 		registrar,
+		server.WithGRPCInstanceID(instanceId),
 	)
 
 	logger.Info("Service is ready 🚀")

@@ -3,6 +3,8 @@ package user
 import (
 	"context"
 	"fmt"
+
+	"gorm.io/gorm"
 )
 
 type Repository interface {
@@ -19,7 +21,7 @@ type Repository interface {
 		user *User,
 		updateFun func(context.Context, *User) (*User, error),
 	) error
-	Disable(ctx context.Context, id uint64) error
+	StatusChange(context.Context, *User) error
 
 	// Dangerous operation
 	SoftDelete(ctx context.Context, id uint64) error
@@ -31,4 +33,8 @@ type NotFoundError struct {
 
 func (e NotFoundError) Error() string {
 	return fmt.Sprintf("User %d Not Found !!!", e.UserId)
+}
+
+func NotDeleted(db *gorm.DB) *gorm.DB {
+	return db.Where("deleted = 0")
 }

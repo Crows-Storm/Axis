@@ -73,7 +73,7 @@ func (r *consulResolver) resolve() {
 	if err != nil {
 		if r.ctx.Err() != nil {
 			return
-		} // context cancel Exit directly
+		} // contextx cancel Exit directly
 		logger.Error("consul resolve failed",
 			"service", r.serviceName,
 			"lastIndex", r.lastIndex,

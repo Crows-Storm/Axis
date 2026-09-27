@@ -1,7 +1,7 @@
 package adapters
 
 //import (
-//	"context"
+//	"contextx"
 //	"sync"
 //	"time"
 //
@@ -15,12 +15,12 @@ package adapters
 //	store []*domain.User
 //}
 //
-//func (m *MemoryUserRepository) ExistsWithTransaction(ctx context.Context, id int64, LoginID string, email string) (bool, error) {
+//func (m *MemoryUserRepository) ExistsWithTransaction(ctx contextx.Context, id int64, LoginID string, email string) (bool, error) {
 //	//TODO implement me
 //	panic("implement me")
 //}
 //
-//func (m *MemoryUserRepository) Disable(ctx context.Context, userId int64) error {
+//func (m *MemoryUserRepository) Disable(ctx contextx.Context, userId int64) error {
 //	//TODO implement me
 //	panic("implement me")
 //}
@@ -65,7 +65,7 @@ package adapters
 //	return nil, domain.NotFoundError{UserId: id}
 //}
 //
-//func (m *MemoryUserRepository) Create(_ context.Context, user *domain.User) (*domain.User, error) {
+//func (m *MemoryUserRepository) Create(_ contextx.Context, user *domain.User) (*domain.User, error) {
 //	m.lock.Lock()
 //	defer m.lock.Unlock()
 //
@@ -89,7 +89,7 @@ package adapters
 //	return newUser, nil
 //}
 //
-//func (m *MemoryUserRepository) Update(ctx context.Context, user *domain.User, updateFun func(context.Context, *domain.User) (*domain.User, error)) error {
+//func (m *MemoryUserRepository) Update(ctx contextx.Context, user *domain.User, updateFun func(contextx.Context, *domain.User) (*domain.User, error)) error {
 //	m.lock.Lock()
 //	defer m.lock.Unlock()
 //
@@ -116,22 +116,22 @@ package adapters
 //
 //}
 //
-//func (m MemoryUserRepository) CreateBatch(ctx context.Context, users []*domain.User) error {
+//func (m MemoryUserRepository) CreateBatch(ctx contextx.Context, users []*domain.User) error {
 //	//TODO implement me
 //	panic("implement me")
 //}
 //
-//func (m MemoryUserRepository) UpdateStatus(ctx context.Context, userId int64, status int8) error {
+//func (m MemoryUserRepository) UpdateStatus(ctx contextx.Context, userId int64, status int8) error {
 //	//TODO implement me
 //	panic("implement me")
 //}
 //
-//func (m MemoryUserRepository) SoftDelete(ctx context.Context, userId int64) error {
+//func (m MemoryUserRepository) SoftDelete(ctx contextx.Context, userId int64) error {
 //	//TODO implement me
 //	panic("implement me")
 //}
 //
-//func (m MemoryUserRepository) GetStats(ctx context.Context) (map[string]interface{}, error) {
+//func (m MemoryUserRepository) GetStats(ctx contextx.Context) (map[string]interface{}, error) {
 //	//TODO implement me
 //	panic("implement me")
 //}

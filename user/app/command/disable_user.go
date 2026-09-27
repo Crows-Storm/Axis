@@ -14,7 +14,7 @@ type DisableUserCommand struct {
 type DisableUserCommandHandler decorator.CommandHandler[DisableUserCommand, struct{}]
 
 type disableUserCommandHandler struct {
-	userRepo domain.Repository
+	repo domain.Repository
 }
 
 func NewDisableUserCommandHandler(
@@ -25,20 +25,33 @@ func NewDisableUserCommandHandler(
 		panic("nil User Repository")
 	}
 	return decorator.ApplyCommandDecorators[DisableUserCommand, struct{}](
-		disableUserCommandHandler{userRepo: repo},
+		disableUserCommandHandler{repo: repo},
 		metricsClient,
 	)
 }
 
 // Handle implementation of `DisableUserCommand` returns void
 func (c disableUserCommandHandler) Handle(ctx context.Context, cmd DisableUserCommand) (struct{}, error) {
-	// You can send domain events here to add other operations, such as:
+	// You can send domain event here to add other operations, such as:
 	// - Create a user configuration record
 	// - Send a welcome email (recorded in the task table)
 	// - Create an audit log
 	// If any operation fails, the entire transaction will be rolled back.
-	err := c.userRepo.Disable(ctx, cmd.ID)
+
+	user, err := c.repo.GetInfo(cmd.ID)
 	if err != nil {
+		return struct{}{}, decorator.CommandExecutedError{
+			Msg: "Invalid ID",
+		}
+	}
+	if err := user.Disable(); err != nil {
+		return struct{}{}, decorator.CommandExecutedError{
+			Msg: "Invalid ID",
+		}
+	}
+
+	// call the repo
+	if err := c.repo.StatusChange(ctx, user); err != nil {
 		return struct{}{}, err
 	}
 	return struct{}{}, nil

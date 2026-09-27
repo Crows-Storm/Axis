@@ -34,8 +34,24 @@ func TestCreateUserCommandHandler(t *testing.T) {
 			setupMock: func(repo *usermock.MockRepository, mc *decoratormock.MockMetricsClient) {
 				repo.On("ExistsWithTransaction", context.Background(), mock.AnythingOfType("uint64"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(false, nil)
 
-				repo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).
-					Return(&domain.User{}, nil)
+				//repo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).
+				//	Return(&domain.User{}, nil)
+
+				// NOTE: Check the user domain before calling repo.Create
+				repo.On("Create", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
+					// value-check
+					if u.ID > 0 &&
+						u.Status == commuser.Activated &&
+						u.LoginID == "testuser" &&
+						u.Password != "" &&
+						u.Email == "test@example.com" &&
+						u.Deleted == 0 { // value check
+						if len(u.Events()) == 2 {
+							return true
+						}
+					}
+					return false
+				})).Return(&domain.User{}, nil)
 
 				mc.On("Inc", mock.Anything, mock.Anything).Maybe()
 			},
@@ -56,7 +72,9 @@ func TestCreateUserCommandHandler(t *testing.T) {
 				//	Return(nil, errors.New("user already exists"))
 				mc.On("Inc", mock.Anything, mock.Anything).Maybe()
 			},
-			wantErr: commuser.ErrUserAlreadyExists,
+			wantErr: decorator.CommandExecutedError{
+				Msg: "user already exists",
+			},
 		},
 		{
 			name: "Database Error",
@@ -68,11 +86,11 @@ func TestCreateUserCommandHandler(t *testing.T) {
 			setupMock: func(repo *usermock.MockRepository, mc *decoratormock.MockMetricsClient) {
 				repo.On("ExistsWithTransaction", context.Background(), mock.AnythingOfType("uint64"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(false, nil)
 
-				repo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).Return(nil, errors.New("database connection failed"))
+				repo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).Return(nil, errors.New("Invalid login id or password"))
 
 				mc.On("Inc", mock.Anything, mock.Anything).Maybe()
 			},
-			wantErr: errors.New("database connection failed"),
+			wantErr: errors.New("Invalid login id or password"),
 		},
 	}
 
@@ -80,9 +98,13 @@ func TestCreateUserCommandHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := new(usermock.MockRepository)
 			mc := new(decoratormock.MockMetricsClient)
+
+			//mph := new(usermock.MockPasswordHasher)	// maybe no need mock, because its tool interface
+			mph := domain.NewHash256PasswordHelper()
+
 			tt.setupMock(repo, mc)
 
-			handler := NewCreateUserCommandHandler(repo, mc)
+			handler := NewCreateUserCommandHandler(repo, mc, mph)
 
 			// Act
 			result, err := handler.Handle(context.Background(), tt.cmd)
@@ -120,28 +142,28 @@ func TestCreateUserCommand_Validate(t *testing.T) {
 		{
 			name:    "LoginID is empty",
 			cmd:     CreateUserCommand{LoginID: "", Password: passwordHash, Email: "test@example.com"},
-			wantErr: decorator.InvalidCommand.Error(),
+			wantErr: "login id or password or email cannot be empty.",
 		},
 		{
 			name:    "Password is empty",
 			cmd:     CreateUserCommand{LoginID: "testuser", Password: "", Email: "test@example.com"},
-			wantErr: decorator.InvalidCommand.Error(),
+			wantErr: "login id or password or email cannot be empty.",
 		},
 		{
 			name:    "Email is empty",
 			cmd:     CreateUserCommand{LoginID: "testuser", Password: passwordHash, Email: ""},
-			wantErr: decorator.InvalidCommand.Error(),
+			wantErr: "login id or password or email cannot be empty.",
 		},
 		{
 			name:    "All fields are empty",
 			cmd:     CreateUserCommand{},
-			wantErr: decorator.InvalidCommand.Error(),
+			wantErr: "login id or password or email cannot be empty.",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.cmd.Validate()
+			err := tt.cmd.Validate() // check command validity
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.EqualError(t, err, tt.wantErr)
@@ -152,7 +174,7 @@ func TestCreateUserCommand_Validate(t *testing.T) {
 	}
 }
 
-// command: go test -bench=BenchmarkCreateUserCommandHandler -count=5
+// NOTE: command: go test -bench=BenchmarkCreateUserCommandHandler -count=5
 // output:
 //
 // goos: darwin
@@ -169,6 +191,8 @@ func TestCreateUserCommand_Validate(t *testing.T) {
 func BenchmarkCreateUserCommandHandler(b *testing.B) {
 	repo := new(usermock.MockRepository)
 	mc := new(decoratormock.MockMetricsClient)
+	//mph := new(usermock.MockPasswordHasher)	// maybe no need mock, because its tool interface
+	mph := domain.NewHash256PasswordHelper()
 
 	repo.On("ExistsWithTransaction", context.Background(), mock.AnythingOfType("uint64"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(true, nil)
 
@@ -176,7 +200,7 @@ func BenchmarkCreateUserCommandHandler(b *testing.B) {
 		Return(&domain.User{}, nil)
 	mc.On("Inc", mock.Anything, mock.Anything).Maybe()
 
-	handler := NewCreateUserCommandHandler(repo, mc)
+	handler := NewCreateUserCommandHandler(repo, mc, mph)
 	cmd := CreateUserCommand{
 		LoginID:  "testuser",
 		Password: passwordHash,

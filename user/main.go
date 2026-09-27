@@ -137,7 +137,6 @@ func main() {
 
 	httpErrCh := server.RunHTTPServerWithLifecycle(ctx, cfg.GetServerAddr(), func(router *gin.Engine) {
 		middlewares := []protos.MiddlewareFunc{
-			protos.MiddlewareFunc(server.RequestIDMiddleware()),
 			protos.MiddlewareFunc(server.LoggerMiddleware()),
 			protos.MiddlewareFunc(server.AuthMiddleware(tokenIssuer)),
 			protos.MiddlewareFunc(server.RateLimitMiddleware()),
@@ -155,7 +154,7 @@ func main() {
 			},
 		})
 		logger.Info("HTTP routes registered successfully")
-	})
+	}, server.WithHTTPInstanceID(instanceId))
 
 	grpcErrCh := server.RunGRPCServerWithLifecycle(
 		ctx,
@@ -164,9 +163,8 @@ func main() {
 			userpb.RegisterUserServiceServer(server, userServiceServer)
 		},
 		registrar,
-		// Restore the principal propagated by upstream services (e.g. auth)
-		// so business handlers can read it via principal.FromContext(ctx).
 		server.WithGRPCAuthParser(tokenIssuer),
+		server.WithGRPCInstanceID(instanceId),
 	)
 
 	logger.Info("Service is ready 🚀")

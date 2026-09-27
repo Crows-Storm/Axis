@@ -1,0 +1,394 @@
+#openapi: 3.0.3
+#info:
+#  title: Schnorr ZKP Auth API
+#  description: |
+#    基于 Schnorr 零知识证明的无密码认证服务。
+#
+#    ## 核心思想
+#    - 服务端**永不接触密码**，只存储公钥。
+#    - 登录分两阶段：`/challenge` 换取一次性 `nonce` + `salt`，`/login` 提交零知识证明 `(R, s)`。
+#    - 私钥 `x` 由密码 `KDF(pwd, salt)` 在**客户端本地**派生，全程不上网。
+#
+#    ## 编码约定
+#    - 所有大整数 / 字节串统一使用 **base64** 编码。
+#    - `salt` 与 `nonce` 为公开参数，可明文传输。
+#    - 生产环境必须启用 HTTPS（防 nonce 篡改与 JS 注入）。
+#  version: 1.0.0
+#  contact:
+#    name: Auth Team
+#  license:
+#    name: MIT
+#
+#servers:
+#  - url: https://api.example.com/v1
+#    description: 生产环境
+#  - url: http://localhost:8080/v1
+#    description: 本地开发
+#
+#tags:
+#  - name: auth
+#    description: 注册与登录
+#  - name: permission
+#    description: 零知识权限证明（v >= threshold）
+#
+#paths:
+#  /register:
+#    post:
+#      tags: [auth]
+#      summary: 注册用户（只上传公钥）
+#      description: |
+#        客户端本地生成随机 `salt`，计算 `x = KDF(pwd, salt)` 与密钥对 `(PublicX, PublicY)`，
+#        仅将 `salt` 与公钥上传。服务端**不接收密码**。
+#      operationId: register
+#      requestBody:
+#        required: true
+#        content:
+#          application/json:
+#            schema:
+#              $ref: '#/components/schemas/RegisterRequest'
+#            examples:
+#              alice:
+#                summary: 注册 alice
+#                value:
+#                  username: alice
+#                  salt: "cmFuZG9tLXNhbHQtMTZieQ=="
+#                  publicX: "M1RWeU9UazVaRE0yTmpFME1XWXhPVFUyTmpVMk5qWT0="
+#                  publicY: "TmpZME1XWXhPVFUyTmpVMk5qWTBPVGt5TkRNME5UUTBOUT09"
+#      responses:
+#        '201':
+#          description: 注册成功
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/RegisterResponse'
+#        '400':
+#          $ref: '#/components/responses/BadRequest'
+#        '409':
+#          description: 用户名已存在
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/Error'
+#
+#  /challenge:
+#    post:
+#      tags: [auth]
+#      summary: 请求登录挑战
+#      description: |
+#        服务端根据 `username` 查回 `salt`，并生成一次性 `nonce`（默认 60s 过期）。
+#        客户端用 `salt` 重新派生 `x`，用 `nonce` 构造上下文 `ctx = "login:<username>:" + nonce`。
+#      operationId: issueChallenge
+#      requestBody:
+#        required: true
+#        content:
+#          application/json:
+#            schema:
+#              $ref: '#/components/schemas/ChallengeRequest'
+#            examples:
+#              alice:
+#                value:
+#                  username: alice
+#      responses:
+#        '200':
+#          description: 挑战下发成功
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/ChallengeResponse'
+#              examples:
+#                alice:
+#                  value:
+#                    salt: "cmFuZG9tLXNhbHQtMTZieQ=="
+#                    nonce: "n47e5dc6b4a39281706f5e4d3c2b1a0"
+#                    expiresIn: 60
+#        '400':
+#          $ref: '#/components/responses/BadRequest'
+#        '404':
+#          description: 用户不存在
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/Error'
+#
+#  /login:
+#    post:
+#      tags: [auth]
+#      summary: 提交零知识证明完成登录
+#      description: |
+#        客户端提交 `proof = { R, s }`。服务端重建 `ctx`，用存储的公钥验证：
+#        - `e = H(ctx || R || publicKey)`
+#        - 校验 `s*G == R + e*PublicKey`
+#
+#        验证通过后返回 JWT；`nonce` 立即作废，防止重放。
+#      operationId: login
+#      requestBody:
+#        required: true
+#        content:
+#          application/json:
+#            schema:
+#              $ref: '#/components/schemas/LoginRequest'
+#            examples:
+#              alice:
+#                summary: 正确密码
+#                value:
+#                  username: alice
+#                  proof:
+#                    R: "B0F1N0tVb0R5WkRNMk5qRTBNV1l4T1RVMk5qVTJOalk9"
+#                    s: "Q1F3NE5qTTBOVFEwTkRRME5UUTBOVFEwTkRRME5UUTA="
+#      responses:
+#        '200':
+#          description: 登录成功
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/LoginResponse'
+#        '400':
+#          $ref: '#/components/responses/BadRequest'
+#        '401':
+#          description: 证明校验失败 / nonce 过期 / 未请求挑战
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/Error'
+#              examples:
+#                invalidProof:
+#                  value:
+#                    error: invalid_proof
+#                    message: "Schnorr verification failed"
+#                nonceExpired:
+#                  value:
+#                    error: nonce_expired
+#                    message: "Challenge expired or not issued"
+#
+#  /permission/prove:
+#    post:
+#      tags: [permission]
+#      summary: 生成权限证明（客户端本地调用，接口示例）
+#      description: |
+#        ⚠️ 该计算通常在客户端完成，此接口仅用于说明证明结构。
+#        证明者拥有私密值 `v`，希望在不泄露 `v` 的前提下证明 `v >= threshold`。
+#      operationId: provePermission
+#      requestBody:
+#        required: true
+#        content:
+#          application/json:
+#            schema:
+#              type: object
+#              required: [value, threshold]
+#              properties:
+#                value:
+#                  type: string
+#                  format: base64
+#                  description: 私密值 v（仅客户端本地使用，**不应真的上传**）
+#                threshold:
+#                  type: string
+#                  format: base64
+#      responses:
+#        '200':
+#          description: 证明生成成功
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/PermissionProof'
+#
+#  /permission/verify:
+#    post:
+#      tags: [permission]
+#      summary: 验证权限证明
+#      description: |
+#        服务端只知道 `threshold` 和证明本身，**不知道用户的真实 v**。
+#        验证通过即表示 `v >= threshold` 成立。
+#      operationId: verifyPermission
+#      requestBody:
+#        required: true
+#        content:
+#          application/json:
+#            schema:
+#              $ref: '#/components/schemas/PermissionVerifyRequest'
+#            examples:
+#              valid:
+#                summary: v=850, threshold=500（应通过）
+#                value:
+#                  threshold: "NTAw"
+#                  proof:
+#                    commitment: "Q0VFNU5qTTBOVFEwTkRRME5UUTA="
+#                    response: "RUVFNU5qTTBOVFEwTkRRME5UUTA="
+#      responses:
+#        '200':
+#          description: 验证结果
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/PermissionVerifyResponse'
+#        '400':
+#          $ref: '#/components/responses/BadRequest'
+#
+#components:
+#  securitySchemes:
+#    bearerAuth:
+#      type: http
+#      scheme: bearer
+#      bearerFormat: JWT
+#
+#  responses:
+#    BadRequest:
+#      description: 请求参数错误
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/Error'
+#
+#  schemas:
+#    # ---------- Auth ----------
+#    RegisterRequest:
+#      type: object
+#      required: [username, salt, publicX, publicY]
+#      properties:
+#        username:
+#          type: string
+#          minLength: 3
+#          maxLength: 64
+#          pattern: '^[a-zA-Z0-9_]+$'
+#          example: alice
+#        salt:
+#          type: string
+#          format: base64
+#          description: 客户端随机生成（建议 >= 16 字节），服务端仅存储
+#          example: "cmFuZG9tLXNhbHQtMTZieQ=="
+#        publicX:
+#          type: string
+#          format: base64
+#          description: Schnorr 公钥 X 分量
+#        publicY:
+#          type: string
+#          format: base64
+#          description: Schnorr 公钥 Y 分量
+#
+#    RegisterResponse:
+#      type: object
+#      properties:
+#        username:
+#          type: string
+#          example: alice
+#        createdAt:
+#          type: string
+#          format: date-time
+#          example: "2026-09-24T10:30:00Z"
+#
+#    ChallengeRequest:
+#      type: object
+#      required: [username]
+#      properties:
+#        username:
+#          type: string
+#          example: alice
+#
+#    ChallengeResponse:
+#      type: object
+#      required: [salt, nonce, expiresIn]
+#      properties:
+#        salt:
+#          type: string
+#          format: base64
+#          description: 与注册时一致，供客户端重新派生私钥 x
+#        nonce:
+#          type: string
+#          format: base64
+#          description: 一次性随机数，服务端缓存，登录成功后作废
+#        expiresIn:
+#          type: integer
+#          description: 有效期（秒）
+#          example: 60
+#
+#    LoginRequest:
+#      type: object
+#      required: [username, proof]
+#      properties:
+#        username:
+#          type: string
+#          example: alice
+#        proof:
+#          $ref: '#/components/schemas/SchnorrProof'
+#
+#    SchnorrProof:
+#      type: object
+#      required: [R, s]
+#      properties:
+#        R:
+#          type: string
+#          format: base64
+#          description: 承诺点 R = r*G
+#        s:
+#          type: string
+#          format: base64
+#          description: 响应 s = r + e*x，其中 e = H(ctx || R || publicKey)
+#
+#    LoginResponse:
+#      type: object
+#      required: [token, expiresIn]
+#      properties:
+#        token:
+#          type: string
+#          description: JWT
+#          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+#        expiresIn:
+#          type: integer
+#          example: 3600
+#        tokenType:
+#          type: string
+#          default: Bearer
+#
+#    # ---------- Permission ----------
+#    PermissionProof:
+#      type: object
+#      required: [commitment, response]
+#      properties:
+#        commitment:
+#          type: string
+#          format: base64
+#          description: 承诺分量
+#        response:
+#          type: string
+#          format: base64
+#          description: 响应分量
+#        threshold:
+#          type: string
+#          format: base64
+#          description: 可选的阈值明文回显（服务端已知，可不传）
+#
+#    PermissionVerifyRequest:
+#      type: object
+#      required: [threshold, proof]
+#      properties:
+#        threshold:
+#          type: string
+#          format: base64
+#          description: 阈值（服务端指定）
+#        proof:
+#          $ref: '#/components/schemas/PermissionProof'
+#
+#    PermissionVerifyResponse:
+#      type: object
+#      required: [ok]
+#      properties:
+#        ok:
+#          type: boolean
+#          description: true 表示 v >= threshold
+#        verifiedAt:
+#          type: string
+#          format: date-time
+#
+#    # ---------- Common ----------
+#    Error:
+#      type: object
+#      required: [error]
+#      properties:
+#        error:
+#          type: string
+#          example: invalid_proof
+#        message:
+#          type: string
+#          example: "Schnorr verification failed"
+#
+#security:
+#  - bearerAuth: []

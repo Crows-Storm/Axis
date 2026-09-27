@@ -3,7 +3,7 @@ package protos
 import (
 	"context"
 
-	"github.com/Crows-Storm/Axis/common/discovery/grpcx"
+	"github.com/Crows-Storm/Axis/common/contextx"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
 	"github.com/Crows-Storm/Axis/user/app"
 	"github.com/Crows-Storm/Axis/user/app/command"
@@ -40,10 +40,6 @@ func (G GRPCServer) GetUserById(ctx context.Context, request *userpb.GetUserById
 	if err != nil {
 		return nil, err
 	}
-	// get current Principal context
-	//p := grpcx.PrincipalFromContext(ctx)
-	//fmt.Print(p)
-
 	return &userpb.GetUserByIdResponse{
 		Id:      result.ID,
 		LoginID: result.LoginID,
@@ -77,7 +73,7 @@ func (G GRPCServer) VerifyPassword(ctx context.Context, request *userpb.VerifyPa
 	ok, err := G.app.Queries.VerifyLogin.Handle(ctx, query.VerifyLogin{
 		LoginID:   request.LoginID,
 		Password:  request.Password,
-		RequestId: grpcx.RequestIDFromContext(ctx),
+		RequestId: contextx.FromContext(ctx).RequestID(),
 	})
 	if err != nil {
 		return &wrapperspb.BoolValue{Value: ok}, err

@@ -172,7 +172,7 @@ func TestCreateUser_InvalidRequest(t *testing.T) {
 	}
 }
 
-// TestCreateUser_ContextTimeout tests context timeout
+// TestCreateUser_ContextTimeout tests contextx timeout
 func TestCreateUser_ContextTimeout(t *testing.T) {
 	// Arrange
 	mockClient := new(MockUserServiceClient)
@@ -187,7 +187,7 @@ func TestCreateUser_ContextTimeout(t *testing.T) {
 		Email:    "test@example.com",
 	}
 
-	expectedErr := status.Error(codes.DeadlineExceeded, "context deadline exceeded")
+	expectedErr := status.Error(codes.DeadlineExceeded, "contextx deadline exceeded")
 	mockClient.On("CreateUser", ctx, req).Return((*emptypb.Empty)(nil), expectedErr)
 
 	// Act
@@ -392,7 +392,7 @@ func TestUserGRPC_NilClient(t *testing.T) {
 	// Note: 实际调用会 panic，应该在构造函数中添加 nil 检查
 }
 
-// TestUserGRPC_ContextCancellation tests context cancellation
+// TestUserGRPC_ContextCancellation tests contextx cancellation
 func TestUserGRPC_ContextCancellation(t *testing.T) {
 	// Arrange
 	mockClient := new(MockUserServiceClient)
@@ -407,7 +407,7 @@ func TestUserGRPC_ContextCancellation(t *testing.T) {
 		Email:    "test@example.com",
 	}
 
-	expectedErr := status.Error(codes.Canceled, "context canceled")
+	expectedErr := status.Error(codes.Canceled, "contextx canceled")
 	mockClient.On("CreateUser", ctx, req).Return((*emptypb.Empty)(nil), expectedErr)
 
 	// Act

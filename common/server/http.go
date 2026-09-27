@@ -10,12 +10,27 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RunHTTPServerWithLifecycle starts the HTTP server and supports graceful shutdown
-func RunHTTPServerWithLifecycle(ctx context.Context, addr string, wrapper func(router *gin.Engine)) chan error {
-	apiRouter := gin.New()
+type HTTPServerOption func(*httpServerConfig)
 
+type httpServerConfig struct {
+	instanceID string
+}
+
+func WithHTTPInstanceID(id string) HTTPServerOption {
+	return func(c *httpServerConfig) {
+		c.instanceID = id
+	}
+}
+
+func RunHTTPServerWithLifecycle(ctx context.Context, addr string, wrapper func(router *gin.Engine), opts ...HTTPServerOption) chan error {
+	cfg := httpServerConfig{}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	apiRouter := gin.New()
 	apiRouter.Use(gin.Recovery())
-	apiRouter.Use(RequestIDMiddleware())
+	apiRouter.Use(RequestContextMiddleware(cfg.instanceID))
 
 	wrapper(apiRouter)
 

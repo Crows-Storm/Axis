@@ -134,21 +134,20 @@ func main() {
 	}
 
 	// register self to consul
+	instanceId := fmt.Sprintf("%s-%s-%d", serviceName, cfg.ServerHost, cfg.GRPCPort)
 	registrar := registry.NewRegistrar(consulClient, registry.ServiceInfo{
 		Name: serviceName,
-		ID:   fmt.Sprintf("%s-%s-%d", serviceName, cfg.ServerHost, cfg.GRPCPort),
+		ID:   instanceId,
 		Host: cfg.ServerHost,
 		Port: cfg.GRPCPort,
 	})
 
 	httpErrCh := server.RunHTTPServerWithLifecycle(ctx, cfg.GetServerAddr(), func(router *gin.Engine) {
 		middlewares := []protos.MiddlewareFunc{
-			protos.MiddlewareFunc(server.RequestIDMiddleware()),
 			protos.MiddlewareFunc(server.LoggerMiddleware()),
-			protos.MiddlewareFunc(server.AuthMiddleware(jwtIssuer)), // TODO: need improve
+			protos.MiddlewareFunc(server.AuthMiddleware(jwtIssuer)),
 			protos.MiddlewareFunc(server.RateLimitMiddleware()),
 			protos.MiddlewareFunc(server.PermissionMiddleware()),
-			protos.MiddlewareFunc(server.RequestMetadataMiddleware()), // setting headers to request context
 		}
 		protos.RegisterHandlersWithOptions(router, &HTTPServer{
 			app: application,
@@ -161,7 +160,7 @@ func main() {
 			},
 		})
 		logger.Info("HTTP routes registered successfully")
-	})
+	}, server.WithHTTPInstanceID(instanceId))
 
 	grpcErrCh := server.RunGRPCServerWithLifecycle(
 		ctx,
@@ -170,9 +169,8 @@ func main() {
 			authpb.RegisterAuthServiceServer(server, authServiceServer)
 		},
 		registrar,
-		// Restore the principal propagated by upstream services
-		// so business handlers can read it via principal.FromContext(ctx).
 		server.WithGRPCAuthParser(jwtIssuer),
+		server.WithGRPCInstanceID(instanceId),
 	)
 
 	logger.Info("Service is ready 🚀")

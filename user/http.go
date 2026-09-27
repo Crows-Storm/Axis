@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	time "time"
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/server"
@@ -34,7 +33,7 @@ func (H HTTPServer) CreateUser(c *gin.Context) {
 	server.Success(c, result)
 }
 
-func (H HTTPServer) Disable(c *gin.Context, id int64) {
+func (H HTTPServer) Disable(c *gin.Context, id uint64) {
 	result, err := H.app.Commands.DisableUser.Handle(c, command.DisableUserCommand{
 		ID: id,
 	})
@@ -45,6 +44,7 @@ func (H HTTPServer) Disable(c *gin.Context, id int64) {
 	server.Success(c, result)
 }
 
+// The CreateBatchUsers Deprecated
 func (H HTTPServer) CreateBatchUsers(c *gin.Context) {
 	var req command.CreateBatchUserCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -76,7 +76,7 @@ func (H HTTPServer) ExistsWithTransaction(c *gin.Context, params protos.ExistsWi
 func (H HTTPServer) UserStatusAnalysis(c *gin.Context) {
 	//val, ok := c.Get("session_holder_id")
 	//if !ok {
-	//	server.ErrorWithCode(c, server.CodeBadRequest, "session_holder_id not found in context")
+	//	server.ErrorWithCode(c, server.CodeBadRequest, "session_holder_id not found in contextx")
 	//	return
 	//}
 	//sessionHolderID, _ := val.(int64)
@@ -88,7 +88,7 @@ func (H HTTPServer) UserStatusAnalysis(c *gin.Context) {
 	server.Success(c, result)
 }
 
-func (H HTTPServer) SoftDeleteUser(c *gin.Context, id int64) {
+func (H HTTPServer) SoftDeleteUser(c *gin.Context, id uint64) {
 	_, err := H.app.Commands.SoftDeleteUser.Handle(c, command.SoftDeleteUserCommand{
 		ID: id,
 	})
@@ -117,9 +117,8 @@ func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
 	req.ID = sessionHolderID
 	// just have email and id in req now
 	_, err := H.app.Commands.UpdateUser.Handle(c, command.UpdateUserCommand{
-		User: &req, // from db by request context get user id to query a user domain
+		User: &req, // from db by request contextx get user id to query a user domain
 		UpdateFun: func(ctx context.Context, u *domain.User) (*domain.User, error) {
-			u.UpdateTime = time.Now()
 			if &req != nil {
 				if req.Email != "" {
 					u.Email = req.Email
@@ -138,14 +137,14 @@ func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
 }
 
 func (H HTTPServer) GetCurrentUserInfo(c *gin.Context) {
-	// TODO: need add a Context Manager for gin context
+	// TODO: need add a Context Manager for gin contextx
 	// is current session holder id
 	val, ok := c.Get("session_holder_id")
 	if !ok {
 		server.ErrorWithStatusUnauthorized(c)
 		return
 	}
-	sessionHolderID, _ := val.(int64)
+	sessionHolderID, _ := val.(uint64)
 	result, err := H.app.Queries.GetUser.Handle(c, query.GetUserQuery{
 		ID: sessionHolderID,
 	})
@@ -156,7 +155,7 @@ func (H HTTPServer) GetCurrentUserInfo(c *gin.Context) {
 	server.Success(c, result)
 }
 
-func (H HTTPServer) GetUserInfoById(c *gin.Context, id int64) {
+func (H HTTPServer) GetUserInfoById(c *gin.Context, id uint64) {
 	result, err := H.app.Queries.GetUser.Handle(c, query.GetUserQuery{
 		ID: id,
 	})

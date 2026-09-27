@@ -2,6 +2,9 @@ package decorator
 
 import (
 	"context"
+
+	"github.com/Crows-Storm/Axis/common/config/logger"
+	"github.com/sirupsen/logrus"
 )
 
 type CommandHandler[C, R any] interface {
@@ -29,7 +32,7 @@ func (c CommandExecutedError) Error() string {
 }
 
 type CommandValidator interface {
-	Validate() error
+	Validate() CommandError
 }
 
 type commandValidateDecorator[C, R any] struct {
@@ -41,7 +44,12 @@ func (d commandValidateDecorator[C, R]) Handle(ctx context.Context, cmd C) (R, e
 	if v, ok := any(cmd).(CommandValidator); ok {
 		// Check the validity of the command in advance
 		if err := v.Validate(); err != nil {
-			return zero, InvalidCommand
+			logger.WithFields(logrus.Fields{
+				"command": cmd,
+				"err":     err,
+			}).Debug("Command validation failed")
+
+			return zero, InvalidCommand(err.Error())
 		}
 	}
 	return d.base.Handle(ctx, cmd)

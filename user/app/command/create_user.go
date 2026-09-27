@@ -2,15 +2,11 @@ package command
 
 import (
 	"context"
-	"errors"
-	"time"
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/decorator"
-	commuser "github.com/Crows-Storm/Axis/common/domain/user"
-	"github.com/Crows-Storm/Axis/common/util"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
-	"github.com/Crows-Storm/Axis/user/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type CreateUserCommand struct {
@@ -19,9 +15,9 @@ type CreateUserCommand struct {
 	Email    string `json:"email"`
 }
 
-func (c CreateUserCommand) Validate() error {
+func (c CreateUserCommand) Validate() decorator.CommandError {
 	if c.LoginID == "" || c.Password == "" || c.Email == "" {
-		return decorator.CommandExecutedError{Msg: decorator.InvalidCommand.Error()}
+		return decorator.InvalidCommand("login id or password or email cannot be empty.")
 	}
 	return nil
 }
@@ -29,52 +25,83 @@ func (c CreateUserCommand) Validate() error {
 type CreateUserCommandHandler decorator.CommandHandler[CreateUserCommand, struct{}]
 
 type createUserCommandHandler struct {
-	userRepo domain.Repository
+	repo   domain.Repository
+	hasher domain.PasswordHasher
 }
 
 func NewCreateUserCommandHandler(
 	repo domain.Repository,
 	metricsClient decorator.MetricsClient,
+	hasher domain.PasswordHasher,
 ) CreateUserCommandHandler {
 	if repo == nil {
 		panic("nil User Repository")
 	}
 	return decorator.ApplyCommandDecorators[CreateUserCommand, struct{}](
-		createUserCommandHandler{userRepo: repo},
+		createUserCommandHandler{repo: repo, hasher: hasher},
 		metricsClient,
 	)
 }
 
 // Handle implementation of `CreateUserCommand` returns void
 func (c createUserCommandHandler) Handle(ctx context.Context, cmd CreateUserCommand) (struct{}, error) {
-	// You can send domain events here to add other operations, such as:
-	// - Create a user configuration record
-	// - Send a welcome email (recorded in the task table)
-	// - Create an audit log
-	// If any operation fails, the entire transaction will be rolled back.
+	exist, err := c.repo.ExistsWithTransaction(ctx, 0, cmd.LoginID, "")
+	if err != nil {
+		return struct{}{}, decorator.CommandExecutedError{
+			Msg: "Invalid LoginID",
+		}
+	}
+	//r, err := errgroup.WithContext(ctx)
+	//r.Go(func() error {
+	//	// do something
+	//	return nil
+	//})
 
-	psw, err := utils.HashForStorage(cmd.Password)
-	if err != nil {
-		logger.Errorf("hashing password error: %v", err)
-		return struct{}{}, errors.New("invalid password")
-	}
-	exist, err := c.userRepo.ExistsWithTransaction(ctx, 0, cmd.LoginID, "")
-	if err != nil {
-		return struct{}{}, err
-	}
 	if exist {
-		return struct{}{}, commuser.ErrUserAlreadyExists
+		return struct{}{}, decorator.CommandExecutedError{
+			Msg: "user already exists",
+		}
 	}
-	_, err = c.userRepo.Create(ctx, &domain.User{
-		ID:         util.GenerateID(),
-		LoginID:    cmd.LoginID,
-		Password:   psw, // is H1 + salt to storage
-		Email:      cmd.Email,
-		CreateTime: time.Now(),
-		UpdateTime: time.Now(),
-	})
+
+	// factory fun to create/init aggregate root
+	u, err := domain.Create(cmd.LoginID, cmd.Email)
+
 	if err != nil {
-		return struct{}{}, err
+		logger.WithFields(logrus.Fields{
+			"LoginID": cmd.LoginID,
+			"Email":   cmd.Email,
+		}).WithError(err).Error("failed to create user")
+		return struct{}{}, decorator.CommandExecutedError{
+			Msg: "Invalid login id or email",
+		}
 	}
+
+	// apply password utils return the password to store
+	if err := u.ApplyPassword(cmd.Password, false, c.hasher); err != nil {
+
+		logger.WithFields(logrus.Fields{
+			"LoginID":  cmd.LoginID,
+			"Email":    cmd.Email,
+			"Password": cmd.Password,
+		}).Warn("Failed to apply password when creating user")
+
+		return struct{}{}, decorator.CommandExecutedError{
+			Msg: "Invalid login id or password",
+		}
+	}
+
+	_, err = c.repo.Create(ctx, u) // to save
+	if err != nil {
+		logger.WithFields(logrus.Fields{
+			"LoginID": cmd.LoginID,
+			"Email":   cmd.Email,
+		}).Warn("failed to create user")
+		return struct{}{}, decorator.CommandExecutedError{
+			Msg: "Invalid login id or password",
+		}
+	}
+
+	// TODO: do Publish Event on bus
+
 	return struct{}{}, nil
 }

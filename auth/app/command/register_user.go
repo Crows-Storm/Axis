@@ -11,6 +11,7 @@ import (
 
 type RegisterUserCommand struct {
 	LoginID  string `json:"login_id"`
+	Username string `json:"username"`
 	Password string `json:"password"`
 	Email    string `json:"email"`
 }
@@ -50,6 +51,7 @@ func (r registerUserCommandHandler) Handle(ctx context.Context, cmd RegisterUser
 	// call user grpc interface to create user
 	_, err := r.userService.CreateUser(ctx, &userpb.CreateUserRequest{
 		LoginID:  cmd.LoginID,
+		Username: cmd.Username,
 		Password: cmd.Password,
 		Email:    cmd.Email,
 	})

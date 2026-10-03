@@ -114,7 +114,7 @@ func main() {
 		ID:   instanceId,
 		Host: cfg.ServerHost,
 		Port: cfg.GRPCPort,
-	})
+	}, discoveryConfig.Timeout)
 
 	httpErrCh := server.RunHTTPServerWithLifecycle(ctx, cfg.GetServerAddr(), func(router *gin.Engine) {
 		protos.RegisterHandlersWithOptions(router, HTTPServer{

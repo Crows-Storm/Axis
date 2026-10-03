@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // MockUserServiceClient is a mock implementation of userpb.UserServiceClient
@@ -43,6 +44,30 @@ func (m *MockUserServiceClient) GetUserByLoginID(ctx context.Context, in *userpb
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*userpb.GetUserByLoginIDResponse), args.Error(1)
+}
+
+func (m *MockUserServiceClient) CreateAndBindIdentity(ctx context.Context, in *userpb.CreateAndBindIdentityRequest, opts ...grpc.CallOption) (*userpb.CreateAndBindIdentityResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*userpb.CreateAndBindIdentityResponse), args.Error(1)
+}
+
+func (m *MockUserServiceClient) GetByUnionID(ctx context.Context, in *userpb.GetByUnionIDRequest, opts ...grpc.CallOption) (*userpb.GetByUnionIDResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*userpb.GetByUnionIDResponse), args.Error(1)
+}
+
+func (m *MockUserServiceClient) VerifyPassword(ctx context.Context, in *userpb.VerifyPasswordRequest, opts ...grpc.CallOption) (*wrapperspb.BoolValue, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*wrapperspb.BoolValue), args.Error(1)
 }
 
 // TestNewUserGRPC tests the constructor
@@ -234,11 +259,11 @@ func TestGetUserById_Success(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.GetUserByIdRequest{
-		ID: 1234253231,
+		Id: 1234253231,
 	}
 
 	expectedResp := &userpb.GetUserByIdResponse{
-		ID:      int64(1234253231),
+		Id:      1234253231,
 		LoginID: "testuser",
 		Email:   "test@example.com",
 		Status:  1,
@@ -251,7 +276,7 @@ func TestGetUserById_Success(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, expectedResp, resp)
-	assert.Equal(t, int64(1234253231), resp.ID)
+	assert.Equal(t, uint64(1234253231), resp.Id)
 	assert.Equal(t, "testuser", resp.LoginID)
 	assert.Equal(t, "test@example.com", resp.Email)
 	mockClient.AssertExpectations(t)
@@ -265,7 +290,7 @@ func TestGetUserById_NotFound(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.GetUserByIdRequest{
-		ID: 1234253232,
+		Id: 1234253232,
 	}
 
 	expectedErr := status.Error(codes.NotFound, "user not found")
@@ -289,7 +314,7 @@ func TestGetUserById_EmptyId(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.GetUserByIdRequest{
-		ID: 0,
+		Id: 0,
 	}
 
 	expectedErr := status.Error(codes.InvalidArgument, "id is required")
@@ -317,7 +342,7 @@ func TestGetUserByLoginID_Success(t *testing.T) {
 	}
 
 	expectedResp := &userpb.GetUserByLoginIDResponse{
-		ID:      int64(1234253233),
+		Id:      1234253233,
 		LoginID: "testuser",
 		Email:   "test@example.com",
 		Status:  1,
@@ -431,9 +456,9 @@ func TestUserGRPC_ConcurrentCalls(t *testing.T) {
 
 	// Setup expectations for concurrent calls
 	for i := 0; i < numCalls; i++ {
-		req := &userpb.GetUserByIdRequest{ID: int64(1234253235)}
+		req := &userpb.GetUserByIdRequest{Id: 1234253235}
 		resp := &userpb.GetUserByIdResponse{
-			ID:      int64(1234253235),
+			Id:      1234253235,
 			LoginID: "testuser",
 			Email:   "test@example.com",
 		}
@@ -444,7 +469,7 @@ func TestUserGRPC_ConcurrentCalls(t *testing.T) {
 	done := make(chan bool, numCalls)
 	for i := 0; i < numCalls; i++ {
 		go func() {
-			req := &userpb.GetUserByIdRequest{ID: int64(1234253235)}
+			req := &userpb.GetUserByIdRequest{Id: 1234253235}
 			resp, err := userGRPC.GetUserById(ctx, req)
 			assert.NoError(t, err)
 			assert.NotNil(t, resp)
@@ -523,7 +548,7 @@ func TestUserGRPC_PermissionDenied(t *testing.T) {
 
 	ctx := context.Background()
 	req := &userpb.GetUserByIdRequest{
-		ID: int64(1234253236),
+		Id: 1234253236,
 	}
 
 	expectedErr := status.Error(codes.PermissionDenied, "permission denied")
@@ -589,9 +614,9 @@ func BenchmarkGetUserById(b *testing.B) {
 	userGRPC := NewUserGRPC(mockClient)
 
 	ctx := context.Background()
-	req := &userpb.GetUserByIdRequest{ID: int64(1234253237)}
+	req := &userpb.GetUserByIdRequest{Id: 1234253237}
 	resp := &userpb.GetUserByIdResponse{
-		ID:      int64(1234253237),
+		Id:      1234253237,
 		LoginID: "testuser",
 		Email:   "test@example.com",
 	}

@@ -5,7 +5,7 @@ info:
   version: 1.0.0
 
 servers:
-  - url: http://localhost:18081/api
+  - url: http://localhost:18801/api
     description: Local development server
 
 # =============================================================================
@@ -30,157 +30,129 @@ components:
     # ---------------------------------------------------------------------------
     BaseResponse:
       type: object
-      description: Standard API response base (without data)
+      description: Envelope returned by server.Success / Error* (HTTP status is often 200)
       properties:
         code:
           type: integer
-          description: >
-            Business status code.
-            0 indicates success; non-zero values indicate specific errors.
-          enum: [0, 400, 401, 403, 404, 500]
+          description: Business code from common/server.Code (0 = success)
           example: 0
         message:
           type: string
-          description: Human-readable status message
-          example: "success"
-      required:
-        - code
-        - message
-
-    # ---------------------------------------------------------------------------
-    # Error Response
-    # ---------------------------------------------------------------------------
-    ErrorResponse:
-      type: object
-      description: Standard API error response
-      properties:
-        code:
-          type: integer
-          description: >
-            Business status code.
-            Non-zero values indicate specific errors.
-          enum: [400, 401, 403, 404, 500]
-          example: 40101
-        message:
+          example: "Successfully"
+        timestamp:
           type: string
-          description: Human-readable error message
-          example: "Authentication token is missing or invalid"
-        data:
-          nullable: true
-          description: Additional error details (usually null)
+          format: date-time
       required:
         - code
         - message
+        - timestamp
 
-    # ---------------------------------------------------------------------------
-    # User Information Object
-    # ---------------------------------------------------------------------------
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              nullable: true
+
     UserInfo:
       type: object
-      description: Core profile information of the user
+      description: user/domain/user.User JSON (password omitted)
       properties:
         id:
           type: integer
           format: uint64
-          description: Unique identifier of the user
           example: 113453443
-        loginId:
+        username:
           type: string
-          description: Login username of the user
+          example: "johndoe"
+        login_id:
+          type: string
           example: "johndoe"
         email:
           type: string
-          format: email
-          description: Email address of the user
           example: "johndoe@example.com"
         status:
           type: integer
-          description: >
-            Account status code.
-            0 = disabled, 1 = active
+          description: common/domain/user.Status — Activated=0, Disabled=1
           enum: [0, 1]
-          example: 1
-        create_time:
-          type: string
-          format: date-time
-          description: Timestamp when the user account was created
-          example: "2024-01-15T08:30:00Z"
-        update_time:
-          type: string
-          format: date-time
-          description: Timestamp when the user account was updated
-          example: "2024-01-15T08:30:00Z"
+          example: 0
+        deleted:
+          type: integer
+          description: 0 undeleted, 1 deleted
+          enum: [0, 1]
+          example: 0
       required:
         - id
-        - loginId
+        - login_id
         - status
 
-    # ---------------------------------------------------------------------------
-    # Request Schemas
-    # ---------------------------------------------------------------------------
     UpdateUserInfoRequest:
       type: object
-      description: Request body for updating current user info
+      description: Bound as domain.User; handler only applies non-empty email
       properties:
-        loginId:
-          type: string
-          description: Login username of the user
-          example: "johndoe"
-        password:
-          type: string
-          format: password
-          description: Password of the user
-          example: "123456"
         email:
           type: string
-          format: email
-          description: Email address of the user
           example: "johndoe@example.com"
-      required:
-        - loginId
-        - password
-        - email
 
     CreateUserRequest:
       type: object
-      description: Request body for creating a new user
+      description: command.CreateUserCommand
       properties:
-        loginId:
+        login_id:
           type: string
-          description: Login username of the user
+          example: "newuser"
+        username:
+          type: string
           example: "newuser"
         password:
           type: string
           format: password
-          description: Password of the user
           example: "password123"
         email:
           type: string
-          format: email
-          description: Email address of the user
           example: "newuser@example.com"
       required:
-        - loginId
+        - login_id
+        - username
         - password
         - email
 
     CreateBatchUserRequest:
       type: object
-      description: Request body for batch creating users
+      description: command.CreateBatchUserCommand
       properties:
         items:
           type: array
-          description: List of users to create
-          items:
-            $ref: '#/components/schemas/CreateUserRequest'
           minItems: 1
           maxItems: 100
+          items:
+            type: object
+            properties:
+              login_id:
+                type: string
+              password:
+                type: string
+                format: password
+              email:
+                type: string
+            required:
+              - login_id
+              - password
+              - email
       required:
         - items
 
-    # ---------------------------------------------------------------------------
-    # Response Schemas
-    # ---------------------------------------------------------------------------
+    EmptyCommandResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          description: command handlers return struct{}; data is {}
+          properties:
+            data:
+              type: object
+              additionalProperties: true
+
     UserInfoResponse:
       allOf:
         - $ref: '#/components/schemas/BaseResponse'
@@ -188,8 +160,6 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/UserInfo'
-          required:
-            - data
 
     UpdateUserInfoResponse:
       allOf:
@@ -197,45 +167,8 @@ components:
         - type: object
           properties:
             data:
-              type: string
-              description: Operation result message
-          required:
-            - data
-
-    UserListResponse:
-      allOf:
-        - $ref: '#/components/schemas/BaseResponse'
-        - type: object
-          properties:
-            data:
-              type: object
-              description: Paginated list of users
-              properties:
-                total:
-                  type: integer
-                  format: int64
-                  description: Total number of records
-                  example: 100
-                page:
-                  type: integer
-                  description: Current page number
-                  example: 1
-                pageSize:
-                  type: integer
-                  description: Number of records per page
-                  example: 10
-                list:
-                  type: array
-                  description: List of user records
-                  items:
-                    $ref: '#/components/schemas/UserInfo'
-              required:
-                - total
-                - page
-                - pageSize
-                - list
-          required:
-            - data
+              type: boolean
+              example: true
 
     UserStatsResponse:
       allOf:
@@ -244,34 +177,24 @@ components:
           properties:
             data:
               type: object
-              description: User statistics information
               properties:
                 totalUsers:
                   type: integer
                   format: int64
-                  description: Total number of users
-                  example: 1500
                 activeUsers:
                   type: integer
                   format: int64
-                  description: Number of active users
-                  example: 1200
-                disabledUsers:
+                disableUsers:
                   type: integer
                   format: int64
-                  description: Number of disabled users
-                  example: 300
                 deletedUsers:
                   type: integer
                   format: int64
-                  description: Number of deleted users
-                  example: 300
               required:
                 - totalUsers
                 - activeUsers
-                - disabledUsers
-          required:
-            - data
+                - disableUsers
+                - deletedUsers
 
     ExistsResponse:
       allOf:
@@ -280,47 +203,6 @@ components:
           properties:
             data:
               type: boolean
-              description: Whether the user exists
-              example: true
-          required:
-            - data
-
-    CreateBatchResponse:
-      allOf:
-        - $ref: '#/components/schemas/BaseResponse'
-        - type: object
-          properties:
-            data:
-              type: object
-              description: Batch creation result
-              properties:
-                successCount:
-                  type: integer
-                  description: Number of successfully created users
-                  example: 5
-                failCount:
-                  type: integer
-                  description: Number of failed creations
-                  example: 1
-                errors:
-                  type: array
-                  description: Details of failed creations
-                  items:
-                    type: object
-                    properties:
-                      index:
-                        type: integer
-                        description: Index of the failed item in the request array
-                        example: 2
-                      message:
-                        type: string
-                        description: Error message for this item
-                        example: "loginId already exists"
-              required:
-                - successCount
-                - failCount
-          required:
-            - data
 
     DeleteResponse:
       allOf:
@@ -328,11 +210,8 @@ components:
         - type: object
           properties:
             data:
-              type: string
-              description: Operation result message
-              example: "User deleted successfully"
-          required:
-            - data
+              type: boolean
+              example: true
 
     UpdateStatusResponse:
       allOf:
@@ -340,11 +219,12 @@ components:
         - type: object
           properties:
             data:
-              type: string
-              description: Operation result message
-              example: "User status updated successfully"
-          required:
-            - data
+              type: object
+              additionalProperties: true
+
+    CreateBatchResponse:
+      allOf:
+        - $ref: '#/components/schemas/EmptyCommandResponse'
 
 # =============================================================================
 # API Paths
@@ -382,11 +262,11 @@ paths:
                 message: "success"
                 data:
                   id: 113453443
-                  loginId: "johndoe"
+                  username: "johndoe"
+                  login_id: "johndoe"
                   email: "johndoe@example.com"
-                  status: 1
-                  create_time: "2024-01-15T08:30:00Z"
-                  update_time: "2024-01-15T08:30:00Z"
+                  status: 0
+                  deleted: 0
         '401':
           description: >
             Unauthorized. The request lacks valid authentication credentials.
@@ -486,17 +366,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserInfoResponse'
+                $ref: '#/components/schemas/EmptyCommandResponse'
               example:
                 code: 0
-                message: "success"
-                data:
-                  id: 113453444
-                  loginId: "newuser"
-                  email: "newuser@example.com"
-                  status: 1
-                  create_time: "2024-06-01T10:00:00Z"
-                  update_time: "2024-06-01T10:00:00Z"
+                message: "Successfully"
+                data: {}
         '400':
           description: Bad request. Invalid input data or user already exists.
           content:
@@ -564,11 +438,11 @@ paths:
                 message: "success"
                 data:
                   id: 113453443
-                  loginId: "johndoe"
+                  username: "johndoe"
+                  login_id: "johndoe"
                   email: "johndoe@example.com"
-                  status: 1
-                  create_time: "2024-01-15T08:30:00Z"
-                  update_time: "2024-01-15T08:30:00Z"
+                  status: 0
+                  deleted: 0
         '401':
           description: Unauthorized.
           content:
@@ -737,27 +611,28 @@ paths:
     get:
       summary: Check if a user exists
       description: >
-        Check whether a user exists by loginId or email within a
-        transactional context. Returns true if the user exists,
-        false otherwise.
+        Check whether a user exists. Exactly one of id, login_id, email must be set.
       operationId: existsWithTransaction
       tags:
         - User
       parameters:
-        - name: loginId
+        - name: id
           in: query
           required: false
-          description: Login username to check
+          schema:
+            type: integer
+            format: uint64
+        - name: login_id
+          in: query
+          required: false
           schema:
             type: string
             example: "johndoe"
         - name: email
           in: query
           required: false
-          description: Email address to check
           schema:
             type: string
-            format: email
             example: "johndoe@example.com"
       security:
         - BearerAuth: []
@@ -773,7 +648,7 @@ paths:
                 message: "success"
                 data: true
         '400':
-          description: Bad request. At least one of loginId or email is required.
+          description: Bad request. Exactly one of id, login_id, email is required.
           content:
             application/json:
               schema:
@@ -830,7 +705,8 @@ paths:
                 data:
                   totalUsers: 1500
                   activeUsers: 1200
-                  disabledUsers: 300
+                  disableUsers: 300
+                  deletedUsers: 50
         '401':
           description: Unauthorized.
           content:
@@ -886,7 +762,7 @@ paths:
               example:
                 code: 0
                 message: "success"
-                data: "User status updated successfully"
+                data: {}
         '400':
           description: Bad request. Invalid status value.
           content:

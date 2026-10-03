@@ -45,9 +45,9 @@ func NewUpdateUserCommandHandler(
 }
 
 func (u updateUserCommandHandler) Handle(ctx context.Context, cmd UpdateUserCommand) (struct{}, error) {
-	if err := cmd.Validate(); err != nil {
-		return struct{}{}, err
-	}
+	//if err := cmd.Validate(); err != nil {
+	//	return struct{}{}, err
+	//}
 	err := u.userRepo.Update(ctx, cmd.User, cmd.UpdateFun)
 	if err != nil {
 		return struct{}{}, decorator.CommandExecutedError{Msg: fmt.Sprintf("The UpdateUserCommand command failed to Execute, because: %v", err)}

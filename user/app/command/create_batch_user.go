@@ -10,7 +10,7 @@ import (
 )
 
 type CreateBatchUserCommand struct {
-	Items []CreateUserItem
+	Items []CreateUserItem `json:"items"`
 }
 
 func (c CreateBatchUserCommand) Validate() error {
@@ -40,9 +40,9 @@ func (c CreateBatchUserCommand) Validate() error {
 }
 
 type CreateUserItem struct {
-	LoginID  string
-	Password string
-	Email    string
+	LoginID  string `json:"login_id"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
 type CreateBatchUserCommandHandler decorator.CommandHandler[CreateBatchUserCommand, struct{}]
@@ -67,9 +67,9 @@ func NewCreateBatchUserCommandHandler(
 // Handle implementation of `CreateBatchUserCommand` returns void
 func (c createBatchUserCommandHandler) Handle(ctx context.Context, cmd CreateBatchUserCommand) (struct{}, error) {
 	// Validate
-	if err := cmd.Validate(); err != nil {
-		return struct{}{}, err
-	}
+	//if err := cmd.Validate(); err != nil {
+	//	return struct{}{}, err
+	//}
 	users := make([]*domain.User, 0, len(cmd.Items))
 	for _, item := range cmd.Items {
 		users = append(users, &domain.User{
@@ -86,7 +86,7 @@ func (c createBatchUserCommandHandler) Handle(ctx context.Context, cmd CreateBat
 	}
 
 	// You can send domain event here to add other operations, such as:
-	// - Create a user configuration record
+	// - Create a user configuration audit
 	// - Send a welcome email (recorded in the task table)
 	// - Create an audit log
 	// If any operation fails, the entire transaction will be rolled back.

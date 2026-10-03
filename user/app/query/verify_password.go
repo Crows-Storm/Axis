@@ -10,7 +10,7 @@ import (
 )
 
 type VerifyLogin struct {
-	LoginID   string `json:"LoginID"`
+	LoginID   string `json:"login_id"`
 	Password  string `json:"password"`
 	RequestId string `json:"requestId"`
 }

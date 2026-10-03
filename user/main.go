@@ -108,6 +108,7 @@ func main() {
 		AccessTTL:     jwtConfig.AccessTTL,
 		RefreshTTL:    jwtConfig.RefreshTTL,
 	}, tokenRepository)
+
 	application, cleanup := service.NewApplication(ctx, service.ApplicationDependencies{
 		Store:       st,
 		CacheClient: cacheClient,
@@ -133,14 +134,13 @@ func main() {
 		ID:   instanceId,
 		Host: cfg.ServerHost,
 		Port: cfg.GRPCPort,
-	})
+	}, discoveryConfig.Timeout)
 
 	httpErrCh := server.RunHTTPServerWithLifecycle(ctx, cfg.GetServerAddr(), func(router *gin.Engine) {
 		middlewares := []protos.MiddlewareFunc{
-			protos.MiddlewareFunc(server.LoggerMiddleware()),
 			protos.MiddlewareFunc(server.AuthMiddleware(tokenIssuer)),
+			protos.MiddlewareFunc(server.LoggerMiddleware()),
 			protos.MiddlewareFunc(server.RateLimitMiddleware()),
-			protos.MiddlewareFunc(server.PermissionMiddleware()),
 		}
 
 		protos.RegisterHandlersWithOptions(router, HTTPServer{

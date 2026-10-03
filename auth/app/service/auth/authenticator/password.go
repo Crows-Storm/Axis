@@ -60,7 +60,7 @@ func (a *PasswordAuthenticator) Authenticate(ctx context.Context, credential sec
 	}
 
 	return &security.AuthenticatedIdentity{
-		UserId:    user.ID,
+		UserID:    user.Id,
 		UnionId:   c.LoginID,
 		Channel:   "LoginID",
 		IsNewUser: false,

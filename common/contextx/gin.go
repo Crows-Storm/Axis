@@ -20,10 +20,6 @@ func ExtractFromGinHeaders(c *gin.Context) *Builder {
 		builder.WithRequestID(traceID)
 	}
 
-	if corrID := c.GetHeader(HeaderCorrelationID); corrID != "" {
-		builder.WithCorrelationID(corrID)
-	}
-
 	if parent := c.GetHeader(HeaderParentSpanID); parent != "" {
 		builder.WithParentSpanID(parent)
 	} else if spanID := c.GetHeader(HeaderSpanID); spanID != "" {
@@ -62,9 +58,6 @@ func InjectIntoGinHeaders(c *gin.Context, ctx context.Context) {
 	if reqID := reader.RequestID(); reqID != "" {
 		c.Header(HeaderRequestID, reqID)
 		c.Header(HeaderTraceID, reqID)
-	}
-	if corrID := reader.CorrelationID(); corrID != "" {
-		c.Header(HeaderCorrelationID, corrID)
 	}
 	if spanID := reader.SpanID(); spanID != "" {
 		c.Header(HeaderSpanID, spanID)

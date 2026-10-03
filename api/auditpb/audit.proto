@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+option go_package = "github.com/Crows-Storm/Axis/common/genproto/auditpb";
+
+// AuditService is the read API. Writes arrive on the audit topic.
+service AuditService {
+  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
+  rpc GetAuditEvent(GetAuditEventRequest) returns (AuditEvent);
+}
+
+message ListAuditEventsRequest {
+  // from and to are RFC3339 timestamps. to is exclusive.
+  string from = 1;
+  string to = 2;
+  string service = 3;
+  string event_name = 4;
+  int32 limit = 5;
+}
+
+message ListAuditEventsResponse {
+  repeated AuditEvent events = 1;
+}
+
+message GetAuditEventRequest {
+  string event_id = 1;
+}
+
+message AuditEvent {
+  string id = 1;
+  string event_id = 2;
+  string event_name = 3;
+  uint64 operator_id = 4;
+  string category = 5;
+  string timestamp = 6;
+  Metadata metadata = 7;
+}
+
+message Metadata {
+  string service = 1;
+  string aggregate_id = 2;
+  string correlation_id = 3;
+  string causation_id = 4;
+  bytes payload = 5;
+}

@@ -29,6 +29,10 @@ func RunHTTPServerWithLifecycle(ctx context.Context, addr string, wrapper func(r
 	}
 
 	apiRouter := gin.New()
+	// Handlers sometimes pass *gin.Context as context.Context. Without this,
+	// Value does not see the scope stored on Request.Context, so outbound
+	// gRPC metadata loses the request id.
+	apiRouter.ContextWithFallback = true
 	apiRouter.Use(gin.Recovery())
 	apiRouter.Use(RequestContextMiddleware(cfg.instanceID))
 

@@ -80,6 +80,7 @@ run_go_mod_tidy() {
 
     if [ -f "${project_root}/pkg/go.mod" ]; then
         has_module=true
+        log_info "83: $(basename "${module_dir}")"
         log_info "Tidying module: pkg"
         (cd "${project_root}/pkg" && go mod tidy)
     fi

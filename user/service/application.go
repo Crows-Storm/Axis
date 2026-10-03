@@ -20,6 +20,7 @@ type ApplicationDependencies struct {
 	Store       *store.Store
 	CacheClient cache.RueidisClient
 	Issuer      jwt.TokenIssuer
+	EventBus    decorator.EventBus
 }
 
 // NewApplication Create a new Application Instance
@@ -33,10 +34,12 @@ func NewApplication(
 	// password compose
 	hasher := domain.NewHash256PasswordHelper()
 
-	application := newApplication(ctx, dbRepo, deps.CacheClient, metricsClient, hasher)
+	application := newApplication(ctx, dbRepo, deps.CacheClient, metricsClient, hasher, deps.EventBus)
 
 	cleanup := func() {
-		// some close func
+		if deps.EventBus != nil {
+			_ = deps.EventBus.Close()
+		}
 	}
 
 	return application, cleanup
@@ -54,14 +57,15 @@ func newApplication(
 	_ cache.RueidisClient,
 	metricsClient decorator.MetricsClient,
 	hasher domain.PasswordHasher,
+	bus decorator.EventBus,
 ) app.Application {
 	return app.Application{
 		Commands: app.Commands{
-			CreateUser:     command.NewCreateUserCommandHandler(dbRepo, metricsClient, hasher),
+			CreateUser:     command.NewCreateUserCommandHandler(dbRepo, metricsClient, hasher, bus),
 			UpdateUser:     command.NewUpdateUserCommandHandler(dbRepo, metricsClient),
 			SoftDeleteUser: command.NewSoftDeleteUserCommandHandler(dbRepo, metricsClient),
-			DisableUser:    command.NewDisableUserCommandHandler(dbRepo, metricsClient),
-			Activation:     command.NewActivationUserCommandHandler(dbRepo, metricsClient),
+			DisableUser:    command.NewDisableUserCommandHandler(dbRepo, metricsClient, bus),
+			Activation:     command.NewActivationUserCommandHandler(dbRepo, metricsClient, bus),
 		},
 		Queries: app.Queries{
 			GetUser:            query.NewGetUserQueryHandler(dbRepo, metricsClient),

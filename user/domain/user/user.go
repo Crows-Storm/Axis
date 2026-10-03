@@ -11,12 +11,13 @@ type User struct {
 	domain.AggregateRoot
 
 	ID       uint64 `json:"id"`
-	LoginID  string `json:"LoginID"`
+	Username string `json:"username"`
+	LoginID  string `json:"login_id"`
 	Password string `json:"-"`
 	Email    string `json:"email"`
 	//Profile  Profile `json:"profile"`
-	Status  commuser.Status `json:"-"`
-	Deleted int8            `json:"-"`
+	Status  commuser.Status `json:"status"`
+	Deleted int8            `json:"deleted"`
 }
 
 // Desensitization password
@@ -45,6 +46,7 @@ func (u *User) ApplyEvent(evt event.Message) error {
 	switch e := evt.(type) {
 	case *events.UserCreatedMessage:
 		u.ID = e.AggregateID
+		u.Username = e.Username
 		u.LoginID = e.LoginID
 		u.Email = e.Email
 		u.Status = commuser.Activated // User Created Message default status is Activated

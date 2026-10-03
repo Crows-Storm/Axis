@@ -42,6 +42,7 @@ type Config struct {
 	RedisHealthCheckInterval int
 	ReadRedis                ReadRedisConfig
 	WriteRedis               WriteRedisConfig
+	Mongo                    MongoConfig
 }
 
 // JWTConfig will from ENV Config
@@ -83,6 +84,12 @@ type WriteRedisConfig struct {
 	Password     string
 }
 
+// MongoConfig is optional. Services that do not use Mongo leave URI and Database empty.
+type MongoConfig struct {
+	URI      string
+	Database string
+}
+
 func MustInit() {
 	if err := initConfig(); err != nil {
 		panic(fmt.Sprintf("[CONFIG MustInit] Init config ERROR: %v\n", err))
@@ -112,6 +119,7 @@ func initConfig() error {
 		RedisHealthCheckInterval: getRedisHealthCheckInterval(),
 		ReadRedis:                getReadRedis(),
 		WriteRedis:               getWriteRedis(),
+		Mongo:                    getMongoConfig(),
 	}
 	global = cfg
 	return nil
@@ -215,6 +223,13 @@ func getWriteRedis() WriteRedisConfig {
 		DB:           getEnvAsInt("WRITE_REDIS_DB", 0),
 		DisableCache: getEnvAsBool("WRITE_REDIS_DISABLE_CACHE", false),
 		Password:     getEnvAsString("WRITE_REDIS_PASSWORD", ""),
+	}
+}
+
+func getMongoConfig() MongoConfig {
+	return MongoConfig{
+		URI:      os.Getenv("MONGO_URI"),
+		Database: os.Getenv("MONGO_DATABASE"),
 	}
 }
 

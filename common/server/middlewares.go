@@ -1,7 +1,6 @@
 package server
 
 import (
-	"strings"
 	"time"
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
@@ -48,6 +47,7 @@ func LoggerMiddleware() gin.HandlerFunc {
 			"duration_ms", duration.Milliseconds(),
 			"request_id", r.RequestID(),
 			"correlation_id", r.CorrelationID(),
+			"causation_id", r.CausationID(),
 			"span_id", r.SpanID(),
 			"instance_id", r.InstanceID(),
 			"user_id", r.UserID(),
@@ -63,7 +63,7 @@ func AuthMiddleware(jwtIssuer *jwt.JWTIssuer) gin.HandlerFunc {
 			return
 		}
 
-		token := c.GetHeader("Authorization")
+		token := contextx.FromGinContext(c).Authorization()
 		if token == "" {
 			ErrorWithCode(c, CodeInvalidToken)
 			return
@@ -90,37 +90,9 @@ func RateLimitMiddleware() gin.HandlerFunc {
 	}
 }
 
+// TODO
 func PermissionMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if publicPaths[c.FullPath()] || c.FullPath() == "/api/logout" || c.FullPath() == "/api/" {
-			c.Next()
-			return
-		}
-		path := c.Request.URL.Path
-		pathPermissionCode := toPermissionCode(path)
-
-		val, exists := c.Get("permission")
-		if !exists {
-			ErrorWithCode(c, CodeInsufficientPermissions)
-			return
-		}
-
-		permission, ok := val.(map[string]struct{})
-		if !ok {
-			ErrorWithCode(c, CodeInsufficientPermissions)
-			return
-		}
-
-		if _, has := permission[pathPermissionCode]; has {
-			c.Next()
-			return
-		}
-
-		ErrorWithCode(c, CodeInsufficientPermissions)
+		c.Next()
 	}
-}
-
-func toPermissionCode(path string) string {
-	trimmed := strings.TrimPrefix(path, "/")
-	return strings.ReplaceAll(trimmed, "/", ":")
 }

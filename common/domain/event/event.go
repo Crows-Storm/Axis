@@ -1,7 +1,9 @@
 package event
 
 import (
+	"context"
 	"maps"
+	"time"
 
 	"github.com/Crows-Storm/Axis/common/util"
 )
@@ -11,8 +13,26 @@ type Message interface {
 }
 
 type Envelope[T Message] struct {
-	Message  T
+	Topic string
+	Key   []byte
+	Value []byte
+
+	Partition int
+	Offset    int64
+	Timestamp time.Time
+
+	Message T
+	// The Metadata is
+	//MetadataRequestID     = "x-request-id"
+	//MetadataCorrelationID = "x-correlation-id"
+	//MetadataCausationId   = "x-causation-id"
+	//MetadataTraceID       = "x-trace-id"
+	//MetadataSpanID        = "x-span-id"
+	//MetadataParentSpanID  = "x-parent-span-id"
 	Metadata Metadata
+
+	// Reserved: Original underlying message reference
+	raw any
 }
 
 // Metadata contains some data related to a Message that are not functional
@@ -42,6 +62,13 @@ func (m Metadata) Merge(other Metadata) Metadata {
 
 type GenericEnvelope Envelope[Message]
 
+const (
+	// MetaSourceService names the producing process. It is not a principal.
+	MetaSourceService = "source_service"
+	// MetaSourceTopic is the business topic copied onto an audit message.
+	MetaSourceTopic = "source_topic"
+)
+
 type EventCategory string
 
 const (
@@ -69,4 +96,34 @@ func (e Envelope[T]) ToGenericEnvelope() GenericEnvelope {
 // The GenerateEventID to generate a EventID
 func GenerateEventID() string {
 	return util.UUIDV4().String()
+}
+
+// DomainEvent is the publish-side contract. Identity lives on the event;
+// request trace lives on context and is projected to MQ headers separately.
+type DomainEvent interface {
+	EventName() string
+	EventVersion() int
+	AggregateID() string
+	OccurredAt() time.Time
+	Payload() map[string]interface{}
+	Metadata() Metadata
+}
+
+// Wire is the consume-side envelope. Headers/Metadata carry contextx MQ keys.
+type Wire struct {
+	EventID     string
+	EventName   string
+	AggregateID string
+	OccurredAt  string
+	Version     int
+	Payload     []byte
+	Metadata    Metadata
+	Headers     map[string]string
+	Topic       string
+	Partition   int
+	Offset      int64
+}
+
+type Dispatcher interface {
+	Dispatch(ctx context.Context, env Wire) error
 }

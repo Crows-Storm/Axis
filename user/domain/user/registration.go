@@ -10,7 +10,7 @@ import (
 
 // The Create is factory function
 // create user and raise user domain event
-func Create(loginID, email string) (*User, error) {
+func Create(loginID, email, username string) (*User, error) {
 	// aggregate root data
 	aggregateId := util.GenerateFlakeID()
 
@@ -18,7 +18,7 @@ func Create(loginID, email string) (*User, error) {
 	u := &User{}
 
 	// created a domain event and apply it
-	if err := u.RaiseEvent(u, events.NewUserCreatedMessage(aggregateId, loginID, email)); err != nil { // setting event to root.events and increment version
+	if err := u.RaiseEvent(u, events.NewUserCreatedMessage(aggregateId, loginID, email, username)); err != nil { // setting event to root.events and increment version
 		return nil, fmt.Errorf("user.Create: failed to apply domain event, %w", err)
 	}
 	return u, nil

@@ -24,6 +24,7 @@ func NewGRPCServer(app app.Application) *GRPCServer {
 func (G GRPCServer) CreateUser(ctx context.Context, request *userpb.CreateUserRequest) (*emptypb.Empty, error) {
 	_, err := G.app.Commands.CreateUser.Handle(ctx, command.CreateUserCommand{
 		LoginID:  request.LoginID,
+		Username: request.Username,
 		Password: request.Password,
 		Email:    request.Email,
 	})

@@ -2,138 +2,187 @@ package menu
 
 import (
 	"errors"
-	"time"
+	"strings"
 
-	"github.com/Crows-Storm/Axis/auth/domain"
+	"github.com/Crows-Storm/Axis/auth/domain/permission"
 )
 
-// ============================================================
-// Menu 聚合根
-// 职责: 管理菜单/权限节点，维护树形结构
-// ============================================================
+var ErrInvalidMenu = errors.New("invalid menu")
+var ErrMenuNotFound = errors.New("menu not found")
+var ErrMenuCodeExist = errors.New("menu code already exists")
 
+// Menu is a catalog resource in the RBAC tree; it is not the permission aggregate.
 type Menu struct {
-	id         int64         // 主键
-	parentID   int64         // 父菜单ID, 0为顶级
-	menuCode   string        // 菜单编码
-	menuName   string        // 菜单名称
-	menuType   MenuType      // 菜单类型
-	path       string        // 路由路径
-	treePath   TreePath      // 树路径
-	component  string        // 组件路径
-	icon       string        // 图标
-	permission Permission    // 权限标识
-	sortOrder  int           // 排序号
-	visible    bool          // 是否显示
-	status     domain.Status // 状态
-	createdAt  time.Time
-	updatedAt  time.Time
+	ID       uint64
+	ParentID uint64
+	Code     string
+	Name     string
+	Path     string
+	Icon     string
+	Sort     int
+	Status   int8
 }
 
-// ---- 工厂方法 ----
+// Node is a visible menu with the caller's merged bitmask, used to build a tree.
+type Node struct {
+	ID       uint64   `json:"id"`
+	ParentID uint64   `json:"parent_id"`
+	Code     string   `json:"code"`
+	Name     string   `json:"name"`
+	Path     string   `json:"path"`
+	Icon     string   `json:"icon"`
+	Sort     int      `json:"sort"`
+	Status   int8     `json:"status"`
+	Mask     uint64   `json:"mask"`
+	Actions  []string `json:"actions"`
+	Children []*Node  `json:"children"`
+}
 
-func NewMenu(menuCode, menuName string, menuType MenuType, parentID int64) (*Menu, error) {
-	if menuCode == "" {
-		return nil, errors.New("menu code cannot be empty")
+// New is factory function
+// create an active menu catalog item
+func New(parentID uint64, code, name, path, icon string, sort int) (*Menu, error) {
+	code = strings.TrimSpace(code)
+	name = strings.TrimSpace(name)
+	if code == "" || name == "" {
+		return nil, ErrInvalidMenu
 	}
-	if menuName == "" {
-		return nil, errors.New("menu name cannot be empty")
-	}
+	return Reconstruct(0, parentID, code, name, path, icon, sort, 1), nil
+}
+
+// Reconstruct hydrates a Menu from persistence without raising events.
+func Reconstruct(
+	id, parentID uint64,
+	code, name, path, icon string,
+	sort int,
+	status int8,
+) *Menu {
 	return &Menu{
-		parentID:  parentID,
-		menuCode:  menuCode,
-		menuName:  menuName,
-		menuType:  menuType,
-		status:    domain.StatusEnabled,
-		visible:   true,
-		createdAt: time.Now(),
-		updatedAt: time.Now(),
-	}, nil
-}
-
-// ReconstituteMenu 从持久化层重建
-func ReconstituteMenu(id, parentID int64, menuCode, menuName string,
-	menuType MenuType, path string, treePath TreePath,
-	component, icon string, permission Permission,
-	sortOrder int, visible bool, status domain.Status,
-	createdAt, updatedAt time.Time) *Menu {
-
-	return &Menu{
-		id:         id,
-		parentID:   parentID,
-		menuCode:   menuCode,
-		menuName:   menuName,
-		menuType:   menuType,
-		path:       path,
-		treePath:   treePath,
-		component:  component,
-		icon:       icon,
-		permission: permission,
-		sortOrder:  sortOrder,
-		visible:    visible,
-		status:     status,
-		createdAt:  createdAt,
-		updatedAt:  updatedAt,
+		ID:       id,
+		ParentID: parentID,
+		Code:     code,
+		Name:     name,
+		Path:     path,
+		Icon:     icon,
+		Sort:     sort,
+		Status:   status,
 	}
 }
 
-// ---- 行为方法 ----
+// IsActive reports whether the menu is shown in the catalog.
+func (m *Menu) IsActive() bool {
+	return m != nil && m.Status == 1
+}
 
-// SetRouteInfo 设置路由信息（仅目录和菜单类型可设置）
-func (m *Menu) SetRouteInfo(path, component, icon string) error {
-	if m.menuType.IsButton() {
-		return errors.New("button type menu cannot have route info")
+// ToNode maps a menu plus bitmask into a tree node (READ is decided by BuildTree).
+func (m *Menu) ToNode(mask permission.Mask) *Node {
+	if m == nil {
+		return nil
 	}
-	m.path = path
-	m.component = component
-	m.icon = icon
-	m.updatedAt = time.Now()
+	return &Node{
+		ID:       m.ID,
+		ParentID: m.ParentID,
+		Code:     m.Code,
+		Name:     m.Name,
+		Path:     m.Path,
+		Icon:     m.Icon,
+		Sort:     m.Sort,
+		Status:   m.Status,
+		Mask:     uint64(mask),
+		Actions:  mask.Codes(),
+		Children: []*Node{},
+	}
+}
+
+// BuildTree keeps menus that have READ after mask merge and nests children by parent_id.
+func BuildTree(menus []*Menu, matrix map[uint64]permission.Mask) []*Node {
+	visible := make(map[uint64]bool, len(menus))
+	for _, m := range menus {
+		if m == nil || !m.IsActive() {
+			continue
+		}
+		if mask, ok := matrix[m.ID]; ok && mask.Has(permission.ActionRead) {
+			visible[m.ID] = true
+		}
+	}
+
+	nodes := make(map[uint64]*Node, len(menus))
+	for _, m := range menus {
+		if m == nil || !visible[m.ID] {
+			continue
+		}
+		nodes[m.ID] = m.ToNode(matrix[m.ID])
+	}
+
+	var roots []*Node
+	for _, m := range menus {
+		node, ok := nodes[m.ID]
+		if !ok {
+			continue
+		}
+		if m.ParentID == 0 {
+			roots = append(roots, node)
+			continue
+		}
+		if parent, ok := nodes[m.ParentID]; ok {
+			parent.Children = append(parent.Children, node)
+			continue
+		}
+		roots = append(roots, node)
+	}
+	return roots
+}
+
+// BuildCatalog nests every menu, including hidden ones, without permission filtering.
+func BuildCatalog(menus []*Menu) []*Node {
+	nodes := make(map[uint64]*Node, len(menus))
+	for _, m := range menus {
+		if m == nil {
+			continue
+		}
+		nodes[m.ID] = m.ToNode(0)
+	}
+	var roots []*Node
+	for _, m := range menus {
+		if m == nil {
+			continue
+		}
+		node := nodes[m.ID]
+		if m.ParentID == 0 {
+			roots = append(roots, node)
+			continue
+		}
+		if parent, ok := nodes[m.ParentID]; ok {
+			parent.Children = append(parent.Children, node)
+			continue
+		}
+		roots = append(roots, node)
+	}
+	return roots
+}
+
+func (m *Menu) Update(parentID uint64, name, path, icon string, sort int) error {
+	if m == nil {
+		return ErrInvalidMenu
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ErrInvalidMenu
+	}
+	m.ParentID = parentID
+	m.Name = name
+	m.Path = strings.TrimSpace(path)
+	m.Icon = strings.TrimSpace(icon)
+	m.Sort = sort
 	return nil
 }
 
-// SetPermission 设置权限标识（仅按钮类型必须设置）
-func (m *Menu) SetPermission(perm Permission) error {
-	if perm.IsEmpty() && m.menuType.IsButton() {
-		return errors.New("button type menu must have permission identifier")
+func (m *Menu) ChangeStatus(status int8) error {
+	if m == nil {
+		return ErrInvalidMenu
 	}
-	m.permission = perm
-	m.updatedAt = time.Now()
+	if status != 0 && status != 1 {
+		return ErrInvalidMenu
+	}
+	m.Status = status
 	return nil
 }
-
-// UpdateTreePath 更新树路径（在持久化后由领域服务调用）
-func (m *Menu) UpdateTreePath(parentPath TreePath) {
-	m.treePath = BuildTreePath(parentPath, m.id)
-	m.updatedAt = time.Now()
-}
-
-func (m *Menu) ChangeSortOrder(order int) {
-	m.sortOrder = order
-	m.updatedAt = time.Now()
-}
-
-func (m *Menu) Show()    { m.visible = true; m.updatedAt = time.Now() }
-func (m *Menu) Hide()    { m.visible = false; m.updatedAt = time.Now() }
-func (m *Menu) Enable()  { m.status = domain.StatusEnabled; m.updatedAt = time.Now() }
-func (m *Menu) Disable() { m.status = domain.StatusDisabled; m.updatedAt = time.Now() }
-
-// IsTopLevel 是否顶级菜单
-func (m *Menu) IsTopLevel() bool {
-	return m.parentID == 0
-}
-
-func (m *Menu) ID() int64              { return m.id }
-func (m *Menu) ParentID() int64        { return m.parentID }
-func (m *Menu) MenuCode() string       { return m.menuCode }
-func (m *Menu) MenuName() string       { return m.menuName }
-func (m *Menu) MenuType() MenuType     { return m.menuType }
-func (m *Menu) Path() string           { return m.path }
-func (m *Menu) TreePath() TreePath     { return m.treePath }
-func (m *Menu) Component() string      { return m.component }
-func (m *Menu) Icon() string           { return m.icon }
-func (m *Menu) Permission() Permission { return m.permission }
-func (m *Menu) SortOrder() int         { return m.sortOrder }
-func (m *Menu) IsVisible() bool        { return m.visible }
-func (m *Menu) Status() domain.Status  { return m.status }
-func (m *Menu) CreatedAt() time.Time   { return m.createdAt }
-func (m *Menu) UpdatedAt() time.Time   { return m.updatedAt }

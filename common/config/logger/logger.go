@@ -247,14 +247,16 @@ func buildWriters(cfg *Config) ([]io.Writer, *os.File, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	var file *os.File
 	if fileWriter != nil {
 		writers = append(writers, fileWriter)
+		file = fileWriter.(*os.File)
 	}
 
 	if len(writers) == 0 {
 		writers = append(writers, os.Stdout)
 	}
-	return writers, fileWriter.(*os.File), nil
+	return writers, file, nil
 }
 
 func createFileWriter(logDir, fileName string) (io.Writer, error) {
@@ -363,8 +365,8 @@ func WithError(err error) *logrus.Entry {
 
 // ---------------------------Println-aware convenience functions---------------------------
 
-func Println(args interface{}) {
-	Log.Println(args)
+func Println(args ...any) {
+	Log.Println(args...)
 }
 
 func Entry() *logrus.Entry {

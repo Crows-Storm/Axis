@@ -5,7 +5,7 @@ info:
   version: 1.0.0
 
 servers:
-  - url: http://localhost:18083/api
+  - url: http://localhost:18803/api
     description: Local development server
 
 # =============================================================================
@@ -35,48 +35,30 @@ components:
     # ---------------------------------------------------------------------------
     BaseResponse:
       type: object
-      description: Standard API response base (without data)
+      description: Envelope returned by server.Success / Error* (HTTP status is often 200)
       properties:
         code:
           type: integer
-          description: >
-            Business status code.
-            0 indicates success; non-zero values indicate specific errors.
-          enum: [0, 400, 401, 403, 404, 500]
+          description: Business code from common/server.Code (0 = success)
           example: 0
         message:
           type: string
-          description: Human-readable status message
-          example: "success"
-      required:
-        - code
-        - message
-
-    # ---------------------------------------------------------------------------
-    # Error Response (for non-200 status codes)
-    # This is a specialized response that doesn't use the data field.
-    # ---------------------------------------------------------------------------
-    ErrorResponse:
-      type: object
-      description: Standard API error response
-      properties:
-        code:
-          type: integer
-          description: >
-            Business status code.
-            Non-zero values indicate specific errors.
-          enum: [400, 401, 403, 404, 500]
-          example: 40101
-        message:
+          example: "Successfully"
+        timestamp:
           type: string
-          description: Human-readable error message
-          example: "Authentication token is missing or invalid"
-        data:
-          nullable: true
-          description: Additional error details (usually null)
+          format: date-time
       required:
         - code
         - message
+        - timestamp
+
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              nullable: true
 
     # ---------------------------------------------------------------------------
     # Currency Enum
@@ -135,12 +117,12 @@ components:
       properties:
         id:
           type: integer
-          format: int64
+          format: uint64
           description: Unique wallet identifier
           example: 10001
         userId:
           type: integer
-          format: int64
+          format: uint64
           description: User identifier who owns this wallet
           example: 113453443
         walletType:
@@ -244,7 +226,7 @@ paths:
           description: Unique identifier of the wallet
           schema:
             type: integer
-            format: int64
+            format: uint64
             minimum: 1
             example: 10001
       security:
@@ -363,7 +345,7 @@ paths:
           description: Unique identifier of the user
           schema:
             type: integer
-            format: int64
+            format: uint64
             minimum: 1
             example: 113453443
         - name: walletType

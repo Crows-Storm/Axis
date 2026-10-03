@@ -131,7 +131,7 @@ fi
 
 log_info "✅ OpenAPI code generation completed!"
 
-log_info "Running go mod tidy..."
-run_go_mod_tidy "$PROJECT_ROOT"
+#log_info "Running go mod tidy..."
+#run_go_mod_tidy "$PROJECT_ROOT"
 
 log_info "✅ go mod tidy completed!"

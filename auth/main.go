@@ -70,9 +70,8 @@ func main() {
 
 	// TODO: need improve
 	tokenRepository := jwt.NewTokenCacheRepository(cacheClient.W())
-	if cfg == nil || cfg.JWTConfig.AccessSecret == "" {
-		logger.Panicf("config.JWTConfig not init: cfg=%v", cfg)
-		panic("config.JWTConfig not init!!!")
+	if cfg.JWTConfig.AccessSecret == "" {
+		logger.Fatal("JWT access secret is empty")
 	}
 	// init jwt issuer
 	jwtConfig := cfg.JWTConfig
@@ -140,22 +139,21 @@ func main() {
 		ID:   instanceId,
 		Host: cfg.ServerHost,
 		Port: cfg.GRPCPort,
-	})
+	}, discoveryConfig.Timeout)
 
 	httpErrCh := server.RunHTTPServerWithLifecycle(ctx, cfg.GetServerAddr(), func(router *gin.Engine) {
 		middlewares := []protos.MiddlewareFunc{
-			protos.MiddlewareFunc(server.LoggerMiddleware()),
 			protos.MiddlewareFunc(server.AuthMiddleware(jwtIssuer)),
+			protos.MiddlewareFunc(server.LoggerMiddleware()),
 			protos.MiddlewareFunc(server.RateLimitMiddleware()),
-			protos.MiddlewareFunc(server.PermissionMiddleware()),
 		}
-		protos.RegisterHandlersWithOptions(router, &HTTPServer{
+		httpServer := &HTTPServer{
 			app: application,
-		}, protos.GinServerOptions{
+		}
+		protos.RegisterHandlersWithOptions(router, httpServer, protos.GinServerOptions{
 			BaseURL:     "/api",
 			Middlewares: middlewares,
 			ErrorHandler: func(c *gin.Context, err error, statusCode int) {
-				// use Framework http code, and Vague system error
 				server.ErrorWithHttpCode(c, server.CodeInternalServerError, statusCode)
 			},
 		})
@@ -212,9 +210,6 @@ func main() {
 	case <-time.After(45 * time.Second):
 		logger.Warn("shutdown timeout, forcing exit")
 	}
-
-	logger.Info("cleaning up application resources...")
-	cleanup()
 
 	logger.Info("closing Redis connections...")
 	cache.CloseAll()

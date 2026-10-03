@@ -25,9 +25,9 @@ type JWTIssuer struct {
 // TokenRepository sure is a repository interface, query in redis
 type TokenRepository interface {
 	// StoreRefreshToken store refreshToken（use in refresh + cancel）
-	StoreRefreshToken(ctx context.Context, jti string, userID int64, ttl time.Duration) error
+	StoreRefreshToken(ctx context.Context, jti string, userID uint64, ttl time.Duration) error
 	// CheckRefreshToken check refreshToken is effective
-	CheckRefreshToken(ctx context.Context, jti string) (userID int64, err error)
+	CheckRefreshToken(ctx context.Context, jti string) (userID uint64, err error)
 	// RevokeRefreshToken cancel refreshToken
 	RevokeRefreshToken(ctx context.Context, jti string) error
 	// BlacklistAccessToken do accessToken add to blacklist（logout）
@@ -52,14 +52,14 @@ type AuthClaims struct {
 	jwt.RegisteredClaims
 
 	Token    string          `json:"token"` // jwt token
-	UserId   int64           `json:"userId"`
+	UserID   uint64          `json:"user_id"`
 	Username string          `json:"username"`
-	LoginID  string          `json:"LoginID"`
+	LoginID  string          `json:"login_id"`
 	Email    string          `json:"email"`
 	Status   int8            `json:"status"`
 	Role     domain.HoldRole `json:"role"` // a user just can hold a role
 	//Permissions map[string]struct{} `json:"permissions"` // Permission identifier set (O(1) lookup)
-	AuthChannel string            `json:"authChannel"` // password/sms_code/email_code/oauth/qrcode
+	AuthChannel string            `json:"auth_channel"` // password/sms_code/email_code/oauth/qrcode
 	Extra       map[string]string `json:"extra"`
 }
 
@@ -78,9 +78,9 @@ func (j *JWTIssuer) Issue(ctx context.Context, principal *domain.Principal) (*To
 			IssuedAt:  jwt.NewNumericDate(now),
 			ID:        accessJTI,
 			Issuer:    "auth",
-			Subject:   fmt.Sprintf("%d", principal.UserId),
+			Subject:   fmt.Sprintf("%d", principal.UserID),
 		},
-		UserId:      principal.UserId,
+		UserID:      principal.UserID,
 		Username:    principal.Username,
 		LoginID:     principal.LoginID,
 		Email:       principal.Email,
@@ -101,7 +101,7 @@ func (j *JWTIssuer) Issue(ctx context.Context, principal *domain.Principal) (*To
 		ExpiresAt: jwt.NewNumericDate(now.Add(j.refreshTTL)),
 		IssuedAt:  jwt.NewNumericDate(now),
 		ID:        refreshJTI,
-		Subject:   fmt.Sprintf("%d", principal.UserId),
+		Subject:   fmt.Sprintf("%d", principal.UserID),
 		Issuer:    "auth",
 	}
 	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).
@@ -111,7 +111,7 @@ func (j *JWTIssuer) Issue(ctx context.Context, principal *domain.Principal) (*To
 	}
 
 	// store refreshToken mapping
-	if err := j.tokenRepository.StoreRefreshToken(ctx, refreshJTI, principal.UserId, j.refreshTTL); err != nil {
+	if err := j.tokenRepository.StoreRefreshToken(ctx, refreshJTI, principal.UserID, j.refreshTTL); err != nil {
 		return nil, fmt.Errorf("store refresh token failed: %w", err)
 	}
 
@@ -185,7 +185,7 @@ func (j *JWTIssuer) Parse(ctx context.Context, accessToken string) (*domain.Prin
 	}
 
 	return domain.NewPrincipal(
-		claims.UserId,      // UserId
+		claims.UserID,      // UserId
 		claims.Username,    // Username
 		claims.LoginID,     // LoginID
 		claims.Email,       // Email

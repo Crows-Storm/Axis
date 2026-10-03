@@ -11,13 +11,14 @@ import (
 
 type CreateUserCommand struct {
 	LoginID  string `json:"login_id"`
+	Username string `json:"username"`
 	Password string `json:"password"`
 	Email    string `json:"email"`
 }
 
 func (c CreateUserCommand) Validate() decorator.CommandError {
-	if c.LoginID == "" || c.Password == "" || c.Email == "" {
-		return decorator.InvalidCommand("login id or password or email cannot be empty.")
+	if c.LoginID == "" || c.Password == "" || c.Email == "" || c.Username == "" {
+		return decorator.InvalidCommand("login id or password or email or username cannot be empty.")
 	}
 	return nil
 }
@@ -27,18 +28,20 @@ type CreateUserCommandHandler decorator.CommandHandler[CreateUserCommand, struct
 type createUserCommandHandler struct {
 	repo   domain.Repository
 	hasher domain.PasswordHasher
+	bus    decorator.EventBus
 }
 
 func NewCreateUserCommandHandler(
 	repo domain.Repository,
 	metricsClient decorator.MetricsClient,
 	hasher domain.PasswordHasher,
+	bus decorator.EventBus,
 ) CreateUserCommandHandler {
 	if repo == nil {
 		panic("nil User Repository")
 	}
 	return decorator.ApplyCommandDecorators[CreateUserCommand, struct{}](
-		createUserCommandHandler{repo: repo, hasher: hasher},
+		createUserCommandHandler{repo: repo, hasher: hasher, bus: bus},
 		metricsClient,
 	)
 }
@@ -64,7 +67,7 @@ func (c createUserCommandHandler) Handle(ctx context.Context, cmd CreateUserComm
 	}
 
 	// factory fun to create/init aggregate root
-	u, err := domain.Create(cmd.LoginID, cmd.Email)
+	u, err := domain.Create(cmd.LoginID, cmd.Email, cmd.Username)
 
 	if err != nil {
 		logger.WithFields(logrus.Fields{
@@ -78,19 +81,16 @@ func (c createUserCommandHandler) Handle(ctx context.Context, cmd CreateUserComm
 
 	// apply password utils return the password to store
 	if err := u.ApplyPassword(cmd.Password, false, c.hasher); err != nil {
-
 		logger.WithFields(logrus.Fields{
-			"LoginID":  cmd.LoginID,
-			"Email":    cmd.Email,
-			"Password": cmd.Password,
+			"LoginID": cmd.LoginID,
+			"Email":   cmd.Email,
 		}).Warn("Failed to apply password when creating user")
-
 		return struct{}{}, decorator.CommandExecutedError{
 			Msg: "Invalid login id or password",
 		}
 	}
 
-	_, err = c.repo.Create(ctx, u) // to save
+	_, err = c.repo.Create(ctx, u)
 	if err != nil {
 		logger.WithFields(logrus.Fields{
 			"LoginID": cmd.LoginID,
@@ -101,7 +101,9 @@ func (c createUserCommandHandler) Handle(ctx context.Context, cmd CreateUserComm
 		}
 	}
 
-	// TODO: do Publish Event on bus
+	if err := publishUserEvents(ctx, c.bus, u); err != nil {
+		return struct{}{}, err
+	}
 
 	return struct{}{}, nil
 }

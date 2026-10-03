@@ -2,15 +2,33 @@ package query
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Crows-Storm/Axis/common/decorator"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 )
 
 type UserExists struct {
-	ID      uint64 `json:"id"`
-	LoginID string `json:"login_id"`
-	Email   string `json:"email"`
+	ID      uint64 `json:"id" form:"id"`
+	LoginID string `json:"login_id" form:"login_id"`
+	Email   string `json:"email" form:"email"`
+}
+
+func (u UserExists) Validate() decorator.CommandError {
+	count := 0
+	if u.ID != 0 {
+		count++
+	}
+	if u.LoginID != "" {
+		count++
+	}
+	if u.Email != "" {
+		count++
+	}
+	if count != 1 {
+		return errors.New("exactly one of ID, LoginID, Email must be set")
+	}
+	return nil
 }
 
 type UserExistsHandler decorator.QueryHandler[UserExists, bool]

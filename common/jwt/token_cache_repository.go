@@ -28,10 +28,10 @@ func NewTokenCacheRepository(client rueidis.Client) *TokenCacheRepository {
 
 // StoreRefreshToken store refreshToken the JTI → userID mapping，Automatic expiration with TTL
 // Redis: SET auth:refresh:{jti} {userID} EX {ttlSeconds}
-func (r *TokenCacheRepository) StoreRefreshToken(ctx context.Context, jti string, userID int64, ttl time.Duration) error {
+func (r *TokenCacheRepository) StoreRefreshToken(ctx context.Context, jti string, userID uint64, ttl time.Duration) error {
 	cmd := r.CacheClient.B().Set().
 		Key(fmt.Sprintf(refreshTokenPrefix, jti)).
-		Value(strconv.FormatInt(userID, 10)).
+		Value(strconv.FormatUint(userID, 10)).
 		Ex(ttl).
 		Build()
 
@@ -43,7 +43,7 @@ func (r *TokenCacheRepository) StoreRefreshToken(ctx context.Context, jti string
 
 // CheckRefreshToken verifies whether the refreshToken is still valid (residing in Redis)
 // Redis: GET auth:refresh:{jti} → userID
-func (r *TokenCacheRepository) CheckRefreshToken(ctx context.Context, jti string) (int64, error) {
+func (r *TokenCacheRepository) CheckRefreshToken(ctx context.Context, jti string) (uint64, error) {
 	cmd := r.CacheClient.B().Get().
 		Key(fmt.Sprintf(refreshTokenPrefix, jti)).
 		Build()
@@ -56,7 +56,7 @@ func (r *TokenCacheRepository) CheckRefreshToken(ctx context.Context, jti string
 		return 0, fmt.Errorf("check refresh token [%s]: %w", jti, err)
 	}
 
-	userID, err := strconv.ParseInt(val, 10, 64)
+	userID, err := strconv.ParseUint(val, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("parse userID from refresh token [%s]: %w", jti, err)
 	}

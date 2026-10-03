@@ -11,7 +11,10 @@ import (
 type Config struct {
 	Address string
 	Token   string
-	Timeout time.Duration // 用于非 blocking query 的请求（如注册、注销）
+	// Timeout bounds register, heartbeat, and deregister calls.
+	// It must not be applied to http.Client.Timeout: the resolver's blocking
+	// query waits for minutes and would be cancelled by a short client timeout.
+	Timeout time.Duration
 }
 
 func NewClient(cfg *Config) (*consulapi.Client, error) {

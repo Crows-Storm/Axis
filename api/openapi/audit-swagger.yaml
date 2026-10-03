@@ -1,0 +1,209 @@
+openapi: 3.0.3
+info:
+  title: Audit Service API
+  description: Read APIs for time-series audit events. Writes arrive from the message bus.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:18806/api
+    description: Local development server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    BaseResponse:
+      type: object
+      description: Envelope returned by server.Success / Error*
+      properties:
+        code:
+          type: integer
+          description: Business code from common/server.Code (0 = success)
+          example: 0
+        message:
+          type: string
+          example: Successfully
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - code
+        - message
+        - timestamp
+
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              nullable: true
+
+    AuditMeta:
+      type: object
+      description: Time-series meta field (low cardinality)
+      properties:
+        service:
+          type: string
+          example: auth
+        event_name:
+          type: string
+          example: RoleCreated
+      required:
+        - service
+        - event_name
+
+    AuditEvent:
+      type: object
+      description: audit/domain/audit.Record
+      properties:
+        occurred_at:
+          type: string
+          format: date-time
+        meta:
+          $ref: '#/components/schemas/AuditMeta'
+        event_id:
+          type: string
+          example: evt-1
+        aggregate_id:
+          type: string
+          example: "42"
+        version:
+          type: integer
+          example: 1
+        payload:
+          type: object
+          additionalProperties: true
+        topic:
+          type: string
+          example: axis.auth.role-created
+        partition:
+          type: integer
+          example: 0
+        offset:
+          type: integer
+          format: int64
+          example: 9
+      required:
+        - occurred_at
+        - meta
+        - event_id
+
+    AuditEventResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AuditEvent'
+
+    AuditEventListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/AuditEvent'
+
+paths:
+  /events:
+    get:
+      summary: List audit events in a time window
+      description: >
+        Queries the audit_events time-series collection. from and to bound occurred_at,
+        with to exclusive. Optional service and event_name filter the meta field.
+      operationId: listAuditEvents
+      tags:
+        - Audit
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: service
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: event_name
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Events in the window, newest first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventListResponse'
+        '400':
+          description: Invalid window
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /events/{event_id}:
+    get:
+      summary: Get one audit event by event id
+      operationId: getAuditEvent
+      tags:
+        - Audit
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Audit event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

@@ -10,7 +10,7 @@ type HTTPServer struct {
 	app app.Application
 }
 
-func (H HTTPServer) GetLedgerByWalletId(c *gin.Context, id int64, params protos.GetLedgerByWalletIdParams) {
+func (H HTTPServer) GetLedgerByWalletId(c *gin.Context, id uint64, params protos.GetLedgerByWalletIdParams) {
 	//TODO implement me
 	panic("implement me")
 }

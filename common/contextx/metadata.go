@@ -2,7 +2,6 @@ package contextx
 
 const (
 	HeaderRequestID     = "X-Request-ID"
-	HeaderCorrelationID = "X-Correlation-ID"
 	HeaderTraceID       = "X-Trace-ID"
 	HeaderSpanID        = "X-Span-ID"
 	HeaderParentSpanID  = "X-Parent-Span-ID"
@@ -15,6 +14,7 @@ const (
 const (
 	MetadataRequestID     = "x-request-id"
 	MetadataCorrelationID = "x-correlation-id"
+	MetadataCausationId   = "x-causation-id"
 	MetadataTraceID       = "x-trace-id"
 	MetadataSpanID        = "x-span-id"
 	MetadataParentSpanID  = "x-parent-span-id"
@@ -23,12 +23,23 @@ const (
 	MetadataUserAgent     = "x-user-agent"
 )
 
-var AllowedPropagationKeys = map[string]bool{
-	MetadataRequestID:     true,
-	MetadataCorrelationID: true,
-	MetadataTraceID:       true,
-	MetadataParentSpanID:  true,
-	MetadataAuthorization: true,
-	MetadataClientIP:      true,
-	MetadataUserAgent:     true,
+// MQPropagationKeys is the allow-list projected onto Kafka headers / Envelope.Metadata.
+// Authorization, instance-id, and principal/user-id are never included.
+var MQPropagationKeys = []string{
+	MetadataRequestID,
+	MetadataCorrelationID,
+	MetadataCausationId,
+	MetadataTraceID,
+	MetadataParentSpanID,
+	MetadataClientIP,
+	MetadataUserAgent,
+}
+
+func IsMQPropagationKey(key string) bool {
+	switch key {
+	case MetadataRequestID, MetadataCorrelationID, MetadataCausationId, MetadataTraceID, MetadataParentSpanID, MetadataClientIP, MetadataUserAgent:
+		return true
+	default:
+		return false
+	}
 }

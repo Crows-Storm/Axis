@@ -2,12 +2,14 @@ package domain
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Crows-Storm/Axis/common/domain/event"
 )
 
 type Aggregate interface {
 	RaiseEvent(self Applier, e ...event.Message) error
+	HasEvents() bool
 }
 
 type Applier interface {
@@ -40,10 +42,11 @@ func (a *AggregateRoot) IncrementVersion() {
 func (a *AggregateRoot) RaiseEvent(self Applier, events ...event.Message) error {
 	for _, message := range events {
 		if err := self.ApplyEvent(message); err != nil {
-			return fmt.Errorf("aggregateRoot.BaseRoot: failed to record event, %w", err)
+			return fmt.Errorf("aggregateRoot.BaseRoot: failed to audit event, %w", err)
 		}
 		a.events = append(a.events, event.Envelope[event.Message]{
-			Message: message,
+			Message:   message,
+			Timestamp: time.Now(),
 		})
 
 		a.IncrementVersion()

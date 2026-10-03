@@ -15,7 +15,7 @@ const (
 
 // AuthenticatedIdentity TODO: I thing store to mongo? maybe
 type AuthenticatedIdentity struct {
-	UserId    int64
+	UserID    uint64
 	UnionId   string            // Unified identity identifier (phone number/email address/OAuth unionID)
 	Channel   string            // Source: "phone", "email", "wechat", "github"
 	IsNewUser bool              // is first login?

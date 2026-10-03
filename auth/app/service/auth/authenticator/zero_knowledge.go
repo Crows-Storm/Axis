@@ -23,7 +23,7 @@ func (a *ZeroKnowledgeAuthenticator) LoginType() security.LoginType {
 
 func (a *ZeroKnowledgeAuthenticator) Authenticate(ctx context.Context, credential security.Credential) (*security.AuthenticatedIdentity, error) {
 	return &security.AuthenticatedIdentity{
-		UserId:    0,
+		UserID:    0,
 		UnionId:   "",
 		Channel:   "ZK",
 		IsNewUser: false,

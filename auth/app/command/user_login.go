@@ -6,6 +6,7 @@ import (
 
 	"github.com/Crows-Storm/Axis/auth/app/provider"
 	"github.com/Crows-Storm/Axis/auth/app/service/auth"
+	"github.com/Crows-Storm/Axis/auth/domain/role"
 	"github.com/Crows-Storm/Axis/common/decorator"
 	domain "github.com/Crows-Storm/Axis/common/domain/principal"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
@@ -26,10 +27,10 @@ func (c *LoginCommand) Validate() error {
 }
 
 type LoginResult struct {
-	UserId   int64
-	Username string
-	IsNew    bool
-	Token    *jwt.TokenPayload
+	UserID   uint64            `json:"user_id"`
+	Username string            `json:"username"`
+	IsNew    bool              `json:"is_new"`
+	Token    *jwt.TokenPayload `json:"token"`
 }
 
 type LoginCommandHandler decorator.CommandHandler[LoginCommand, LoginResult]
@@ -37,12 +38,14 @@ type LoginCommandHandler decorator.CommandHandler[LoginCommand, LoginResult]
 func NewLoginCommandHandler(
 	userService provider.UserService,
 	authenticators *auth.AuthAppService,
+	roleRepo role.Repository,
 	metricsClient decorator.MetricsClient,
 ) LoginCommandHandler {
 	return decorator.ApplyCommandDecorators[LoginCommand, LoginResult](
 		loginCommandHandler{
 			userService:    userService,
 			authenticators: authenticators,
+			roleRepo:       roleRepo,
 		},
 		metricsClient,
 	)
@@ -51,6 +54,7 @@ func NewLoginCommandHandler(
 type loginCommandHandler struct {
 	userService    provider.UserService
 	authenticators *auth.AuthAppService
+	roleRepo       role.Repository
 }
 
 func (h loginCommandHandler) Handle(ctx context.Context, cmd LoginCommand) (LoginResult, error) {
@@ -58,9 +62,9 @@ func (h loginCommandHandler) Handle(ctx context.Context, cmd LoginCommand) (Logi
 	if err != nil {
 		return LoginResult{}, fmt.Errorf("unsupported login type: %s", cmd.LoginType)
 	}
-	if err := cmd.Validate(); err != nil {
-		return LoginResult{}, fmt.Errorf("credential validation failed: %w", err)
-	}
+	//if err := cmd.Validate(); err != nil {
+	//	return LoginResult{}, fmt.Errorf("credential validation failed: %w", err)
+	//}
 
 	// get Authenticate identity
 	identity, err := strategy.Authenticate(ctx, cmd.Credential)
@@ -75,14 +79,28 @@ func (h loginCommandHandler) Handle(ctx context.Context, cmd LoginCommand) (Logi
 
 	// Obtaining user information for constructing the principal
 	userInfo, err := h.userService.GetUserById(ctx, &userpb.GetUserByIdRequest{
-		ID: identity.UserId,
+		Id: identity.UserID,
 	})
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("get user: %w", err)
+	}
 
-	// TODO: Need to query Role and Permissions from Role and Permission domain, domain query redis
 	holdRole := domain.HoldRole{}
-	// builder principal
+	if h.roleRepo != nil {
+		roles, roleErr := h.roleRepo.GetByUserID(ctx, identity.UserID)
+		if roleErr != nil {
+			return LoginResult{}, fmt.Errorf("get user roles: %w", roleErr)
+		}
+		if len(roles) > 0 && roles[0] != nil {
+			holdRole = domain.HoldRole{
+				RoleID:   int64(roles[0].ID),
+				RoleCode: domain.RoleCode(roles[0].Code),
+			}
+		}
+	}
+
 	principal := &domain.Principal{
-		UserId:      userInfo.ID,
+		UserID:      userInfo.Id,
 		Username:    "",
 		LoginID:     userInfo.LoginID,
 		Email:       userInfo.Email,
@@ -96,5 +114,5 @@ func (h loginCommandHandler) Handle(ctx context.Context, cmd LoginCommand) (Logi
 	if err != nil {
 		return LoginResult{}, fmt.Errorf("issue token failed: %w", err)
 	}
-	return LoginResult{UserId: identity.UserId, Username: principal.Username, IsNew: false, Token: token}, nil
+	return LoginResult{UserID: identity.UserID, Username: principal.Username, IsNew: false, Token: token}, nil
 }

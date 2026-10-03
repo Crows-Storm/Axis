@@ -15,17 +15,19 @@ type ActivationUserCommandHandler decorator.CommandHandler[ActivationUserCommand
 
 type activationUserCommandHandler struct {
 	repo domain.Repository
+	bus  decorator.EventBus
 }
 
 func NewActivationUserCommandHandler(
 	repo domain.Repository,
 	metricsClient decorator.MetricsClient,
+	bus decorator.EventBus,
 ) ActivationUserCommandHandler {
 	if repo == nil {
 		panic("nil User Repository")
 	}
 	return decorator.ApplyCommandDecorators[ActivationUserCommand, struct{}](
-		activationUserCommandHandler{repo: repo},
+		activationUserCommandHandler{repo: repo, bus: bus},
 		metricsClient,
 	)
 }
@@ -33,7 +35,7 @@ func NewActivationUserCommandHandler(
 // Handle implementation of `ActivationUserCommand` returns void
 func (c activationUserCommandHandler) Handle(ctx context.Context, cmd ActivationUserCommand) (struct{}, error) {
 	// You can send domain event here to add other operations, such as:
-	// - Create a user configuration record
+	// - Create a user configuration audit
 	// - Send a welcome email (recorded in the task table)
 	// - Create an audit log
 	// If any operation fails, the entire transaction will be rolled back.
@@ -52,6 +54,9 @@ func (c activationUserCommandHandler) Handle(ctx context.Context, cmd Activation
 
 	// call the repo
 	if err := c.repo.StatusChange(ctx, user); err != nil {
+		return struct{}{}, err
+	}
+	if err := publishUserEvents(ctx, c.bus, user); err != nil {
 		return struct{}{}, err
 	}
 	return struct{}{}, nil

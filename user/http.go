@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
+	"github.com/Crows-Storm/Axis/common/contextx"
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/user/app"
 	"github.com/Crows-Storm/Axis/user/app/command"
@@ -31,6 +32,7 @@ func (H HTTPServer) CreateUser(c *gin.Context) {
 		return
 	}
 	server.Success(c, result)
+	return
 }
 
 func (H HTTPServer) Disable(c *gin.Context, id uint64) {
@@ -61,25 +63,27 @@ func (H HTTPServer) CreateBatchUsers(c *gin.Context) {
 }
 
 func (H HTTPServer) ExistsWithTransaction(c *gin.Context, params protos.ExistsWithTransactionParams) {
-	var req query.UserExists
-	if err := c.ShouldBindJSON(&req); err != nil {
-		server.ErrorWithCode(c, server.CodeBadRequest)
+	req := query.UserExists{}
+	if params.Id != nil {
+		req.ID = uint64(*params.Id)
+	}
+	if params.LoginId != nil {
+		req.LoginID = *params.LoginId
+	}
+	if params.Email != nil {
+		req.Email = *params.Email
 	}
 	result, err := H.app.Queries.UserExists.Handle(c, req)
 	if err != nil {
-		logger.Infof("Failed to get user stats: %v", err)
+		logger.Infof("Failed to check user exists: %v", err)
+		server.ErrorWithCodeAndMessage(c, server.CodeBadRequest, err.Error())
+		return
 	}
 	server.Success(c, result)
 }
 
 // UserStatusAnalysis Query the number of users in all states
 func (H HTTPServer) UserStatusAnalysis(c *gin.Context) {
-	//val, ok := c.Get("session_holder_id")
-	//if !ok {
-	//	server.ErrorWithCode(c, server.CodeBadRequest, "session_holder_id not found in contextx")
-	//	return
-	//}
-	//sessionHolderID, _ := val.(int64)
 	result, err := H.app.Queries.UserStatusAnalysis.Handle(c, query.GetUserStatsQuery{})
 	if err != nil {
 		server.ErrorWithCode(c, server.CodeInternalServerError)
@@ -100,12 +104,11 @@ func (H HTTPServer) SoftDeleteUser(c *gin.Context, id uint64) {
 }
 
 func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
-	val, ok := c.Get("session_holder_id")
-	if !ok {
+	reader := contextx.FromGinContext(c)
+	if !reader.IsAuthenticated() {
 		server.ErrorWithCode(c, server.CodeBadRequest)
 		return
 	}
-	sessionHolderID, _ := val.(uint64)
 
 	// bind to domain object
 	var req domain.User
@@ -113,8 +116,7 @@ func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
 		server.ErrorWithCode(c, server.CodeBadRequest)
 		return
 	}
-	// setting holder ID to updated
-	req.ID = sessionHolderID
+	req.ID = reader.UserID()
 	// just have email and id in req now
 	_, err := H.app.Commands.UpdateUser.Handle(c, command.UpdateUserCommand{
 		User: &req, // from db by request contextx get user id to query a user domain
@@ -137,16 +139,13 @@ func (H HTTPServer) UpdateCurrentUserInfo(c *gin.Context) {
 }
 
 func (H HTTPServer) GetCurrentUserInfo(c *gin.Context) {
-	// TODO: need add a Context Manager for gin contextx
-	// is current session holder id
-	val, ok := c.Get("session_holder_id")
-	if !ok {
+	reader := contextx.FromGinContext(c)
+	if !reader.IsAuthenticated() {
 		server.ErrorWithStatusUnauthorized(c)
 		return
 	}
-	sessionHolderID, _ := val.(uint64)
 	result, err := H.app.Queries.GetUser.Handle(c, query.GetUserQuery{
-		ID: sessionHolderID,
+		ID: reader.UserID(),
 	})
 	if err != nil {
 		server.ErrorWithCode(c, server.CodeInternalServerError)

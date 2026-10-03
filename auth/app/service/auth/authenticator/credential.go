@@ -7,7 +7,7 @@ import (
 )
 
 type PasswordCredential struct {
-	LoginID  string `json:"LoginID" binding:"required"`
+	LoginID  string `json:"login_id" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -70,7 +70,7 @@ func (c *QRCodeCredential) Validate() error {
 
 type RegisterCredential struct {
 	Inner      security.Credential // Embedded actual authentication credentials (CodeCredential / OAuthCredential)
-	LoginID    string              `json:"LoginID"`
+	LoginID    string              `json:"login_id"`
 	Nickname   string              `json:"nickname"`
 	AgreeTerms bool                `json:"agree_terms"`
 }

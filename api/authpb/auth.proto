@@ -3,5 +3,17 @@ syntax = "proto3";
 option go_package = "github.com/Crows-Storm/Axis/common/genproto/authpb";
 
 service AuthService {
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+}
 
+message CheckPermissionRequest {
+  uint64 user_id = 1;
+  string menu = 2;
+  string action = 3;
+}
+
+message CheckPermissionResponse {
+  bool allowed = 1;
+  uint64 mask = 2;
+  repeated string actions = 3;
 }

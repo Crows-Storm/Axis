@@ -36,6 +36,7 @@ func (*UserModel) TableName() string {
 func (m *UserModel) toDomain() *domain.User {
 	return &domain.User{
 		ID:       m.ID,
+		Username: m.Username,
 		LoginID:  m.LoginID,
 		Password: m.Password,
 		Email:    m.Email,
@@ -47,6 +48,7 @@ func (m *UserModel) toDomain() *domain.User {
 func fromDomain(user *domain.User) *UserModel {
 	return &UserModel{
 		ID:       user.ID,
+		Username: user.Username,
 		LoginID:  user.LoginID,
 		Password: user.Password,
 		Email:    user.Email,
@@ -152,6 +154,7 @@ func (u *UserMariaRepository) Create(ctx context.Context, user *domain.User) (*d
 
 		logger.WithFields(logrus.Fields{
 			"user_id":       userModel.ID,
+			"username":      userModel.Username,
 			"login_id":      userModel.LoginID,
 			"email":         userModel.Email,
 			"rows_affected": tx.RowsAffected,
@@ -356,6 +359,7 @@ func (u *UserMariaRepository) GetStats(ctx context.Context) (map[string]interfac
 	var stats struct {
 		TotalUsers   uint64 `gorm:"column:total_users"`
 		ActiveUsers  uint64 `gorm:"column:active_users"`
+		DisableUsers uint64 `gorm:"column:disable_users"`
 		DeletedUsers uint64 `gorm:"column:deleted_users"`
 	}
 
@@ -375,7 +379,7 @@ func (u *UserMariaRepository) GetStats(ctx context.Context) (map[string]interfac
 	return map[string]interface{}{
 		"totalUsers":   stats.TotalUsers,
 		"activeUsers":  stats.ActiveUsers,
-		"disableUsers": stats.ActiveUsers,
+		"disableUsers": stats.DisableUsers,
 		"deletedUsers": stats.DeletedUsers,
 	}, nil
 }

@@ -32,3 +32,4 @@ packages:
       CommandHandler: {}
       QueryHandler: {}
       MetricsClient: {}
+      EventBus: {}

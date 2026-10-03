@@ -11,14 +11,31 @@ type Application struct {
 }
 
 type Commands struct {
-	RegisterUser command.RegisterUserCommandHandler
-	Login        command.LoginCommandHandler
-	//RegisterAndLogin command.RegisterAndLoginCommandHandler
-	//RefreshToken     command.RefreshTokenCommandHandler
-	Logout command.LogoutCommandHandler
+	RegisterUser       command.RegisterUserCommandHandler
+	Login              command.LoginCommandHandler
+	Logout             command.LogoutCommandHandler
+	AssignUserRole     command.AssignUserRoleCommandHandler
+	UnassignUserRole   command.UnassignUserRoleCommandHandler
+	ReplaceUserRoles   command.ReplaceUserRolesCommandHandler
+	UpdateRoleMenuMask command.UpdateRoleMenuMaskCommandHandler
+	RevokeRoleMenu     command.RevokeRoleMenuCommandHandler
+	CreateRole         command.CreateRoleCommandHandler
+	UpdateRole         command.UpdateRoleCommandHandler
+	UpdateRoleStatus   command.UpdateRoleStatusCommandHandler
+	CreateMenu         command.CreateMenuCommandHandler
+	UpdateMenu         command.UpdateMenuCommandHandler
+	UpdateMenuStatus   command.UpdateMenuStatusCommandHandler
 }
 
 type Queries struct {
-	GetUser query.GetUserQueryHandler
-	//GetPrincipal query.GetPrincipalHandler
+	GetUser             query.GetUserQueryHandler
+	GetUserRoles        query.GetUserRolesQueryHandler
+	GetUserMenuTree     query.GetUserMenuTreeQueryHandler
+	CheckMenuPermission query.CheckMenuPermissionQueryHandler
+	ListRoles           query.ListRolesQueryHandler
+	GetRole             query.GetRoleQueryHandler
+	ListAssignedRoles   query.ListAssignedRolesQueryHandler
+	ListMenuCatalog     query.ListMenuCatalogQueryHandler
+	ListActions         query.ListActionsQueryHandler
+	GetMenu             query.GetMenuQueryHandler
 }

@@ -22,6 +22,7 @@ func UnaryClientInterceptor() grpc.UnaryClientInterceptor {
 			"method", method,
 			"request_id", reader.RequestID(),
 			"correlation_id", reader.CorrelationID(),
+			"causation_id", reader.CausationID(),
 			"span_id", reader.SpanID(),
 		)
 		return invoker(ctx, method, req, reply, cc, opts...)

@@ -5,7 +5,7 @@ info:
   version: 1.0.0
 
 servers:
-  - url: http://localhost:18082/api
+  - url: http://localhost:18802/api
     description: Local development server
 
 # =============================================================================
@@ -35,185 +35,184 @@ components:
     # ---------------------------------------------------------------------------
     BaseResponse:
       type: object
-      description: Standard API response base (without data)
+      description: Envelope returned by server.Success / Error* (HTTP status is often 200)
       properties:
         code:
           type: integer
           description: >
-            Business status code.
-            0 indicates success; non-zero values indicate specific errors.
-          enum: [0, 400, 401, 403, 404, 500]
+            Business code from common/server.Code.
+            0 = success; 1000+ client; 2000+ auth; 3000+ not found; 5000+ server.
           example: 0
         message:
           type: string
-          description: Human-readable status message
-          example: "success"
+          description: Human-readable status message (success uses "Successfully")
+          example: "Successfully"
+        timestamp:
+          type: string
+          format: date-time
+          description: Server time when the response was written
       required:
         - code
         - message
+        - timestamp
 
-    # ---------------------------------------------------------------------------
-    # Error Response (for non-200 status codes)
-    # This is a specialized response that doesn't use the data field.
-    # ---------------------------------------------------------------------------
     ErrorResponse:
-      type: object
-      description: Standard API error response
-      properties:
-        code:
-          type: integer
-          description: >
-            Business status code.
-            Non-zero values indicate specific errors.
-          enum: [400, 401, 403, 404, 500]
-          example: 40101
-        message:
-          type: string
-          description: Human-readable error message
-          example: "Authentication token is missing or invalid"
-        data:
-          nullable: true
-          description: Additional error details (usually null)
-      required:
-        - code
-        - message
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          description: Same envelope as success; data is usually omitted
+          properties:
+            data:
+              nullable: true
 
-    # ---------------------------------------------------------------------------
-    # Auth Strategy Enum
-    # Defines the available authentication strategies.
-    # ---------------------------------------------------------------------------
-    AuthStrategy:
+    LoginType:
       type: string
-      description: Authentication strategy used for login
+      description: Login strategy (security.LoginType)
       enum:
-        - normal
-        - api
-        - third_party
-        - phone
+        - password
+        - sms_code
+        - email_code
+        - oauth
         - qrcode
-      example: "normal"
+        - wx_mini_program
+      example: "password"
 
-    # ---------------------------------------------------------------------------
-    # Auth Information Object
-    # Represents the complete authentication profile of a user.
-    # ---------------------------------------------------------------------------
-    PrincipalInfo:
+    HoldRole:
       type: object
-      description: Complete authentication profile information of the user
       properties:
-        userId:
+        role_id:
           type: integer
           format: int64
-          description: Unique identifier of the user
-          example: 113453443
-        roleId:
-          type: integer
-          format: int64
-          description: Role identifier of the user
           example: 2
-        loginId:
+        role_code:
           type: string
-          description: Login username of the user
+          example: "editor"
+        role_level:
+          type: integer
+          example: 0
+
+    Principal:
+      type: object
+      description: JWT principal written by AuthRoot (principal.Principal)
+      properties:
+        user_id:
+          type: integer
+          format: uint64
+          example: 113453443
+        username:
+          type: string
+          example: "johndoe"
+        login_id:
+          type: string
           example: "johndoe"
         email:
           type: string
-          format: email
-          description: Email address of the user
           example: "johndoe@example.com"
-        token:
-          type: string
-          description: JWT token for authentication
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0..."
-        strategy:
-          $ref: '#/components/schemas/AuthStrategy'
-        port:
-          type: string
-          description: User portal type (admin/user/agent)
-          enum: ["admin", "user", "agent"]
-          example: "user"
         status:
           type: integer
-          description: >
-            Account status code.
-            0 = blocked/disabled, 1 = normal/active
-          enum: [0, 1]
-          example: 1
-        create_time:
+          description: Copied from user service status (Activated=0, Disabled=1)
+          example: 0
+        role:
+          $ref: '#/components/schemas/HoldRole'
+        permissions:
+          type: object
+          additionalProperties: true
+          nullable: true
+        auth_channel:
           type: string
-          format: date-time
-          description: Timestamp when the user account was created
-          example: "2024-01-15T08:30:00Z"
-        update_time:
-          type: string
-          format: date-time
-          description: Timestamp when the user account was updated
-          example: "2024-01-15T08:30:00Z"
+          example: "password"
+        extra:
+          type: object
+          additionalProperties:
+            type: string
+          nullable: true
       required:
-        - userId
-        - loginId
+        - user_id
+        - login_id
         - status
+
+    TokenPayload:
+      type: object
+      description: jwt.TokenPayload (expires_in is time.Duration nanoseconds)
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: "Bearer"
+        expires_in:
+          type: integer
+          format: int64
+          description: Access token TTL as encoding/json time.Duration (nanoseconds)
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+
+    LoginResult:
+      type: object
+      description: command.LoginResult
+      properties:
+        user_id:
+          type: integer
+          format: uint64
+        username:
+          type: string
+        is_new:
+          type: boolean
+        token:
+          $ref: '#/components/schemas/TokenPayload'
+      required:
+        - user_id
         - token
-        - strategy
 
     RegisterRequest:
       type: object
-      description: Register credentials
+      description: command.RegisterUserCommand
       properties:
-        loginId:
+        login_id:
           type: string
-          description: Username or login identifier
           example: "johndoe"
         password:
           type: string
           format: password
-          description: User password
           example: "SecurePass123!"
         email:
           type: string
-          description: email for user
           example: "xxx@hotmail.com"
       required:
-        - loginId
+        - login_id
         - password
         - email
 
-    # ---------------------------------------------------------------------------
-    # Login Request
-    # Credentials required for user login.
-    # ---------------------------------------------------------------------------
     LoginRequest:
       type: object
-      description: Login credentials
+      description: Bound in auth/http.go Login
       properties:
-        loginId:
+        login_type:
+          $ref: '#/components/schemas/LoginType'
+        login_id:
           type: string
-          description: Username or login identifier
-          example: "johndoe"
+          description: Used when login_type=password
         password:
           type: string
           format: password
-          description: User password
-          example: "SecurePass123!"
-        strategy:
-          $ref: '#/components/schemas/AuthStrategy'
-          description: Authentication strategy to use
-      required:
-        - loginId
-        - password
-
-    # ---------------------------------------------------------------------------
-    # Logout Request
-    # Optional request body for logout.
-    # ---------------------------------------------------------------------------
-    LogoutRequest:
-      type: object
-      description: Logout request (optional)
-      properties:
-        token:
+        account:
           type: string
-          description: JWT token to invalidate (if not provided, current session token will be used)
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-      required: []
+          description: Phone or email when login_type is sms_code or email_code
+        code:
+          type: string
+          description: OTP or OAuth authorization code
+        provider:
+          type: string
+          description: OAuth provider when login_type=oauth
+        ticket:
+          type: string
+          description: QR ticket when login_type=qrcode
+      required:
+        - login_type
 
     RegisterResponse:
       allOf:
@@ -222,56 +221,394 @@ components:
           properties:
             data:
               type: string
-          required:
-            - data
-    # ---------------------------------------------------------------------------
-    # PrincipalInfo Response (with data field typed as PrincipalInfo)
-    # Uses allOf to combine BaseResponse and a custom data field.
-    # ---------------------------------------------------------------------------
-    PrincipalInfoResponse:
+              example: "successfully"
+
+    PrincipalResponse:
       allOf:
         - $ref: '#/components/schemas/BaseResponse'
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/PrincipalInfo'
-          required:
-            - data
+              $ref: '#/components/schemas/Principal'
 
-    # ---------------------------------------------------------------------------
-    # Login Response
-    # Specialized response for login that includes PrincipalInfo.
-    # ---------------------------------------------------------------------------
     LoginResponse:
       allOf:
         - $ref: '#/components/schemas/BaseResponse'
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/PrincipalInfo'
-          required:
-            - data
+              $ref: '#/components/schemas/LoginResult'
 
-    # ---------------------------------------------------------------------------
-    # Logout Response
-    # Response for logout operation.
-    # ---------------------------------------------------------------------------
     LogoutResponse:
       allOf:
         - $ref: '#/components/schemas/BaseResponse'
         - type: object
           properties:
             data:
-              type: object
-              properties:
-                success:
-                  type: boolean
-                  description: Whether logout was successful
-                  example: true
-                message:
-                  type: string
-                  description: Logout status message
-                  example: "Successfully logged out"
+              type: string
+              example: "successfully"
+
+    RoleInfo:
+      type: object
+      description: Role assigned to the current user
+      properties:
+        id:
+          type: integer
+          format: uint64
+          example: 1
+        code:
+          type: string
+          example: "editor"
+        name:
+          type: string
+          example: "内容编辑"
+        description:
+          type: string
+          example: "商品读写+上下架，用户只读"
+        status:
+          type: integer
+          description: 0 = disabled, 1 = active
+          enum: [0, 1]
+          example: 1
+      required:
+        - id
+        - code
+        - name
+        - status
+
+    MenuNode:
+      type: object
+      description: Menu node with merged bitmask permissions
+      properties:
+        id:
+          type: integer
+          format: uint64
+          example: 3
+        parent_id:
+          type: integer
+          format: uint64
+          example: 0
+        code:
+          type: string
+          example: "product"
+        name:
+          type: string
+          example: "商品管理"
+        path:
+          type: string
+          example: "/product"
+        icon:
+          type: string
+          example: "goods"
+        sort:
+          type: integer
+          example: 3
+        mask:
+          type: integer
+          format: uint64
+          description: Merged permission bitmask for this menu
+          example: 55
+        actions:
+          type: array
+          items:
+            type: string
+          example: ["READ", "CREATE", "UPDATE", "ENABLE", "CLOSE"]
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuNode'
+      required:
+        - id
+        - code
+        - name
+        - mask
+
+    CheckPermissionResult:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+          example: true
+        mask:
+          type: integer
+          format: uint64
+          example: 55
+        actions:
+          type: array
+          items:
+            type: string
+          example: ["READ", "CREATE", "UPDATE"]
+      required:
+        - allowed
+        - mask
+        - actions
+
+    AssignUserRoleRequest:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: uint64
+          example: 2
+        role_id:
+          type: integer
+          format: uint64
+          example: 2
+      required:
+        - user_id
+        - role_id
+
+    RoleMenuRef:
+      type: object
+      properties:
+        role_id:
+          type: integer
+          format: uint64
+        menu_id:
+          type: integer
+          format: uint64
+      required:
+        - role_id
+        - menu_id
+
+    UpdateRoleMenuMaskRequest:
+      type: object
+      properties:
+        role_id:
+          type: integer
+          format: uint64
+          example: 2
+        menu_id:
+          type: integer
+          format: uint64
+          example: 3
+        mask:
+          type: integer
+          format: uint64
+          description: Permission bitmask (e.g. 55 = READ|CREATE|UPDATE|ENABLE|CLOSE)
+          example: 55
+        grant:
+          type: boolean
+          description: true = OR into existing mask; false = replace mask
+          example: false
+      required:
+        - role_id
+        - menu_id
+        - mask
+
+    RoleListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/RoleInfo'
+
+    MenuTreeResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/MenuNode'
+
+    CheckPermissionResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/CheckPermissionResult'
+
+    ReplaceUserRolesRequest:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: uint64
+        role_ids:
+          type: array
+          items:
+            type: integer
+            format: uint64
+      required:
+        - user_id
+        - role_ids
+
+    CreateRoleRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+      required:
+        - code
+        - name
+
+    UpdateRoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+      required:
+        - name
+
+    StatusRequest:
+      type: object
+      properties:
+        status:
+          type: integer
+          enum: [0, 1]
+      required:
+        - status
+
+    RoleMenuGrant:
+      type: object
+      properties:
+        menu_id:
+          type: integer
+          format: uint64
+        code:
+          type: string
+        name:
+          type: string
+        mask:
+          type: integer
+          format: uint64
+        actions:
+          type: array
+          items:
+            type: string
+      required:
+        - menu_id
+        - mask
+
+    RoleDetail:
+      allOf:
+        - $ref: '#/components/schemas/RoleInfo'
+        - type: object
+          properties:
+            menus:
+              type: array
+              items:
+                $ref: '#/components/schemas/RoleMenuGrant'
+
+    CreateMenuRequest:
+      type: object
+      properties:
+        parent_id:
+          type: integer
+          format: uint64
+        code:
+          type: string
+        name:
+          type: string
+        path:
+          type: string
+        icon:
+          type: string
+        sort:
+          type: integer
+      required:
+        - code
+        - name
+
+    UpdateMenuRequest:
+      type: object
+      properties:
+        parent_id:
+          type: integer
+          format: uint64
+        name:
+          type: string
+        path:
+          type: string
+        icon:
+          type: string
+        sort:
+          type: integer
+      required:
+        - name
+
+    ActionDef:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint64
+        code:
+          type: string
+        name:
+          type: string
+        bit:
+          type: integer
+        sort:
+          type: integer
+      required:
+        - code
+        - bit
+
+    RoleDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RoleDetail'
+
+    RoleMenuListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/RoleMenuGrant'
+
+    ActionListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ActionDef'
+
+    RoleInfoResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RoleInfo'
+
+    MenuNodeResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/MenuNode'
+
+    RBACMutationResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: string
+              example: "successfully"
 
 # =============================================================================
 # API Paths
@@ -293,24 +630,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PrincipalInfoResponse'
+                $ref: '#/components/schemas/PrincipalResponse'
               examples:
                 success_response:
-                  summary: Successful login response
+                  summary: Current principal
                   value:
                     code: 0
-                    message: "success"
+                    message: "Successfully"
                     data:
-                      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTM0NTM0NDMiLCJyb2xlIjoiMiIsImV4cCI6MTcyMjQwMDAwMH0..."
-                      userId: 113453443
-                      roleId: 2
-                      loginId: "johndoe"
+                      user_id: 113453443
+                      username: ""
+                      login_id: "johndoe"
                       email: "johndoe@example.com"
-                      strategy: "normal"
-                      port: "user"
-                      status: 1
-                      create_time: "2024-01-15T08:30:00Z"
-                      update_time: "2024-01-15T08:30:00Z"
+                      status: 0
+                      role:
+                        role_id: 2
+                        role_code: "editor"
+                        role_level: 0
+                      auth_channel: "password"
+
 
         # ----- 401 Unauthorized: Invalid credentials -----
         '401':
@@ -392,18 +730,18 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
             examples:
-              normal_login:
-                summary: Normal login with username and password
+              password_login:
+                summary: Password login
                 value:
-                  loginId: "johndoe"
+                  login_type: "password"
+                  login_id: "johndoe"
                   password: "SecurePass123!"
-                  strategy: "normal"
-              phone_login:
-                summary: Phone number login
+              sms_login:
+                summary: SMS code login
                 value:
-                  loginId: "+8613800138000"
-                  password: "123456"
-                  strategy: "phone"
+                  login_type: "sms_code"
+                  account: "+8613800138000"
+                  code: "123456"
       responses:
         # ----- 200 OK: Login successful -----
         '200':
@@ -417,18 +755,17 @@ paths:
                   summary: Successful login response
                   value:
                     code: 0
-                    message: "success"
+                    message: "Successfully"
                     data:
-                      userId: 113453443
-                      roleId: 2
-                      loginId: "johndoe"
-                      email: "johndoe@example.com"
-                      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTM0NTM0NDMiLCJyb2xlIjoiMiIsImV4cCI6MTcyMjQwMDAwMH0..."
-                      strategy: "normal"
-                      port: "user"
-                      status: 1
-                      create_time: "2024-01-15T08:30:00Z"
-                      update_time: "2024-01-15T08:30:00Z"
+                      user_id: 113453443
+                      username: ""
+                      is_new: false
+                      token:
+                        access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                        refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                        token_type: "Bearer"
+                        expires_in: 3600000000000
+
 
         # ----- 401 Unauthorized: Invalid credentials -----
         '401':
@@ -475,21 +812,13 @@ paths:
     post:
       summary: User logout
       description: >
-        Invalidates the current JWT token or the token provided in the request body.
-        After logout, the token cannot be used for subsequent requests.
+        Invalidates the current JWT from the Authorization header.
+        Request body is ignored.
       operationId: logout
       tags:
         - Auth
       security:
         - BearerAuth: []
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LogoutRequest'
-            example:
-              token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
       responses:
         # ----- 200 OK: Logout successful -----
         '200':
@@ -500,10 +829,9 @@ paths:
                 $ref: '#/components/schemas/LogoutResponse'
               example:
                 code: 0
-                message: "success"
-                data:
-                  success: true
-                  message: "Successfully logged out"
+                message: "Successfully"
+                data: "successfully"
+
 
         # ----- 401 Unauthorized: Missing or invalid token -----
         '401':
@@ -526,3 +854,662 @@ paths:
               example:
                 code: 500
                 message: "Internal server error"
+
+  /rbac/menus:
+    get:
+      summary: Get current user menu tree
+      description: >
+        Returns the visible menu tree for the authenticated user.
+        Menus without READ bit after multi-role OR merge are omitted.
+      operationId: GetUserMenus
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Menu tree retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuTreeResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create a menu node
+      operationId: CreateMenu
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMenuRequest'
+      responses:
+        '200':
+          description: Menu created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuNodeResponse'
+        '400':
+          description: Invalid menu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/roles:
+    get:
+      summary: Get current user roles
+      description: Returns active roles assigned to the authenticated user.
+      operationId: GetUserRoles
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Role list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create a role
+      operationId: CreateRole
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+      responses:
+        '200':
+          description: Role created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleInfoResponse'
+        '400':
+          description: Invalid role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/check:
+    get:
+      summary: Check menu permission
+      description: >
+        Checks whether the authenticated user has the given action bit
+        on the specified menu code. Multi-role masks are OR-merged.
+      operationId: CheckPermission
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: menu
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Menu code (e.g. product)
+          example: product
+        - name: action
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [READ, CREATE, UPDATE, DELETE, ENABLE, CLOSE, DISABLE, EXPORT, AUDIT, PUBLISH]
+          description: Action bit to check
+          example: UPDATE
+      responses:
+        '200':
+          description: Permission check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckPermissionResponse'
+        '400':
+          description: Invalid menu or action
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/users/roles:
+    post:
+      summary: Assign a role to a user
+      description: Binds user_id (user service PK) to an active role.
+      operationId: AssignUserRole
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignUserRoleRequest'
+      responses:
+        '200':
+          description: Role assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RBACMutationResponse'
+        '400':
+          description: Invalid assignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Replace a user's role set
+      operationId: ReplaceUserRoles
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceUserRolesRequest'
+      responses:
+        '200':
+          description: Roles replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RBACMutationResponse'
+        '400':
+          description: Invalid replacement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Unassign a role from a user
+      operationId: UnassignUserRole
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignUserRoleRequest'
+      responses:
+        '200':
+          description: Role unassigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RBACMutationResponse'
+        '400':
+          description: Invalid unassignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/roles/menus:
+    put:
+      summary: Update role menu permission mask
+      description: >
+        grant=false replaces the mask; grant=true ORs the bits into the existing mask.
+      operationId: UpdateRoleMenuMask
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleMenuMaskRequest'
+      responses:
+        '200':
+          description: Mask updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RBACMutationResponse'
+        '400':
+          description: Invalid role, menu, or mask
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Revoke a role's menu grant
+      operationId: RevokeRoleMenu
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleMenuRef'
+      responses:
+        '200':
+          description: Grant revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RBACMutationResponse'
+        '400':
+          description: Invalid revoke
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/roles/catalog:
+    get:
+      summary: List all roles (admin)
+      operationId: ListRoles
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Role catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/roles/{role_id}:
+    get:
+      summary: Get role detail including grants
+      operationId: GetRole
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      responses:
+        '200':
+          description: Role detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDetailResponse'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      summary: Update role name and description
+      operationId: UpdateRole
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleRequest'
+      responses:
+        '200':
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleInfoResponse'
+        '400':
+          description: Invalid update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/roles/{role_id}/status:
+    patch:
+      summary: Change role status
+      operationId: ChangeRoleStatus
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusRequest'
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleInfoResponse'
+        '400':
+          description: Invalid status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/roles/{role_id}/menus:
+    get:
+      summary: List grants for a role
+      operationId: GetRoleMenus
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      responses:
+        '200':
+          description: Role grants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleMenuListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/menus/catalog:
+    get:
+      summary: List all menu nodes (admin)
+      operationId: ListMenus
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Menu catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuTreeResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/menus/{menu_id}:
+    patch:
+      summary: Update a menu node
+      operationId: UpdateMenu
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: menu_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMenuRequest'
+      responses:
+        '200':
+          description: Menu updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuNodeResponse'
+        '400':
+          description: Invalid update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/menus/{menu_id}/status:
+    patch:
+      summary: Change menu status
+      operationId: ChangeMenuStatus
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: menu_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusRequest'
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuNodeResponse'
+        '400':
+          description: Invalid status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/actions:
+    get:
+      summary: List permission action bits
+      operationId: ListActions
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Action catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rbac/users/{user_id}/roles:
+    get:
+      summary: List roles assigned to a user (admin)
+      operationId: GetAssignedUserRoles
+      tags:
+        - RBAC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      responses:
+        '200':
+          description: Assigned roles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

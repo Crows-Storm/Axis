@@ -1,69 +1,139 @@
-CREATE TABLE sys_role (
-                          id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                          role_code VARCHAR(50) NOT NULL COMMENT 'role code: ADMIN, MANAGER, USER',
-                          role_name VARCHAR(50) NOT NULL COMMENT '角色名称',
-                          role_level INT DEFAULT 0 COMMENT '角色级别: 数值越小权限越大',
-                          status TINYINT DEFAULT 1 COMMENT '状态: 1正常 0禁用',
-                          deleted TINYINT DEFAULT 0,
-                          create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-                          update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+-- =====================================================
+-- 1. 用户表
+-- =====================================================
+CREATE TABLE `sys_user` (
+                            `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '用户ID',
+                            `username`    VARCHAR(64)     NOT NULL COMMENT '用户名',
+                            `password`    VARCHAR(128)    NOT NULL COMMENT '密码哈希(如 bcrypt)',
+                            `nickname`    VARCHAR(64)     DEFAULT NULL COMMENT '昵称',
+                            `email`       VARCHAR(128)    DEFAULT NULL COMMENT '邮箱',
+                            `status`      TINYINT         NOT NULL DEFAULT 1 COMMENT '1正常 0禁用',
+                            `created_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            `updated_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                            PRIMARY KEY (`id`),
+                            UNIQUE KEY `uk_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
-                          UNIQUE KEY uk_role_code_deleted (role_code, deleted),
-                          KEY idx_status (status)
-) COMMENT='角色表';
+-- =====================================================
+-- 2. 角色表
+-- =====================================================
+CREATE TABLE `sys_role` (
+                            `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '角色ID',
+                            `code`        VARCHAR(64)     NOT NULL COMMENT '角色编码(如 admin, editor)',
+                            `name`        VARCHAR(64)     NOT NULL COMMENT '角色名称',
+                            `description` VARCHAR(255)    DEFAULT NULL COMMENT '描述',
+                            `status`      TINYINT         NOT NULL DEFAULT 1 COMMENT '1正常 0禁用',
+                            `created_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            `updated_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                            PRIMARY KEY (`id`),
+                            UNIQUE KEY `uk_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
 
+-- =====================================================
+-- 3. 菜单/资源表（每个菜单是一个资源）
+-- =====================================================
+CREATE TABLE `sys_menu` (
+                            `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '菜单ID',
+                            `parent_id`   BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '父菜单ID',
+                            `code`        VARCHAR(64)     NOT NULL COMMENT '菜单编码(如 user, system, product, activity)',
+                            `name`        VARCHAR(64)     NOT NULL COMMENT '菜单名称',
+                            `path`        VARCHAR(128)    DEFAULT NULL COMMENT '前端路由',
+                            `icon`        VARCHAR(64)     DEFAULT NULL COMMENT '图标',
+                            `sort`        INT             NOT NULL DEFAULT 0 COMMENT '排序',
+                            `status`      TINYINT         NOT NULL DEFAULT 1 COMMENT '1显示 0隐藏',
+                            `created_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            `updated_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                            PRIMARY KEY (`id`),
+                            UNIQUE KEY `uk_code` (`code`),
+                            KEY `idx_parent_id` (`parent_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='菜单/资源表';
 
-CREATE TABLE sys_menu (
-                          id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                          parent_id BIGINT DEFAULT 0 COMMENT '父菜单ID，0表示顶级菜单',
-                          menu_code VARCHAR(50) NOT NULL COMMENT '菜单编码，唯一标识',
-                          menu_name VARCHAR(50) NOT NULL COMMENT '菜单名称',
-                          menu_type TINYINT NOT NULL COMMENT '类型: 1目录 2菜单 3按钮',
-                          path VARCHAR(200) COMMENT '路由路径',
-                          tree_path VARCHAR(500) COMMENT '树路径: 1/2/5/',
-                          component VARCHAR(200) COMMENT '组件路径',
-                          icon VARCHAR(50) COMMENT '图标',
-                          permission VARCHAR(100) COMMENT '权限标识: user:add, user:edit',
-                          sort_order INT DEFAULT 0 COMMENT '排序号，升序',
-                          visible TINYINT DEFAULT 1 COMMENT '是否显示: 0隐藏 1显示',
-                          status TINYINT DEFAULT 1 COMMENT '状态: 1正常 0禁用',
-                          deleted TINYINT DEFAULT 0,
-                          create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-                          update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+-- =====================================================
+-- 4. 角色-菜单权限表（核心表：用 bitmask 存权限）
+-- =====================================================
+-- mask 的含义：对某个菜单的操作位掩码
+-- 例：mask=127 表示 READ|CREATE|UPDATE|DELETE|ENABLE|CLOSE|DISABLE
+CREATE TABLE `sys_role_menu` (
+                                 `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                                 `role_id`     BIGINT UNSIGNED NOT NULL COMMENT '角色ID',
+                                 `menu_id`     BIGINT UNSIGNED NOT NULL COMMENT '菜单ID',
+                                 `mask`        BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '权限位掩码',
+                                 `created_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                 `updated_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                 PRIMARY KEY (`id`),
+                                 UNIQUE KEY `uk_role_menu` (`role_id`, `menu_id`),
+                                 KEY `idx_role_id` (`role_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色-菜单权限表';
 
-                          UNIQUE KEY uk_menu_code_deleted (menu_code, deleted),
-                          KEY idx_parent_id (parent_id),
-                          KEY idx_menu_type (menu_type),
-                          KEY idx_sort_order (sort_order)
-) COMMENT='菜单表';
+-- =====================================================
+-- 5. 用户-角色表（一个用户可多角色）
+-- =====================================================
+CREATE TABLE `sys_user_role` (
+                                 `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                                 `user_id`     BIGINT UNSIGNED NOT NULL,
+                                 `role_id`     BIGINT UNSIGNED NOT NULL,
+                                 `created_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                 PRIMARY KEY (`id`),
+                                 UNIQUE KEY `uk_user_role` (`user_id`, `role_id`),
+                                 KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户-角色表';
 
--- 插入示例数据
-INSERT INTO sys_menu VALUES
-                         (1, 0, 'system', 'System Management', 1, '/system', NULL, 'Layout', 'system', 'system:index', 1, 1, 1, 0, NOW(), NOW()),
-                         (2, 1, 'user', 'User Management', 2, '/user', NULL, 'system/user/index', 'user', 'system:user:list', 1, 1, 1, 0, NOW(), NOW()),
-                         (3, 2, 'user_add', 'User Add', 3, NULL, '/2/3', NULL, NULL, 'system:user:add', 1, 1, 1, 0, NOW(), NOW()),
-                         (4, 2, 'user_edit', 'User Edit', 3, NULL, '/2/4', NULL, NULL, 'system:user:edit', 2, 1, 1, 0, NOW(), NOW()),
-                         (5, 2, 'user_delete', 'User Delete', 3, NULL, '/2/5', NULL, NULL, 'system:user:delete', 3, 1, 1, 0, NOW(), NOW()),
-                         (6, 1, 'role', 'Role Management', 2, '/role', NULL, 'system/role/index', 'role', 'system:role:list', 2, 1, 1, 0, NOW(), NOW());
+-- =====================================================
+-- 6. 操作位定义表（可选，便于前端展示和扩展）
+-- =====================================================
+CREATE TABLE `sys_action` (
+                              `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                              `code`        VARCHAR(32)     NOT NULL COMMENT '操作编码(如 READ, CREATE)',
+                              `name`        VARCHAR(32)     NOT NULL COMMENT '操作名称',
+                              `bit`         TINYINT         NOT NULL COMMENT '位序号(0~63)',
+                              `sort`        INT             NOT NULL DEFAULT 0,
+                              PRIMARY KEY (`id`),
+                              UNIQUE KEY `uk_code` (`code`),
+                              UNIQUE KEY `uk_bit` (`bit`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作位定义表';
 
-CREATE TABLE sys_user_role (
-                               id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                               user_id BIGINT NOT NULL,
-                               role_id BIGINT NOT NULL,
-                               create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+-- =====================================================
+-- 7. Seed data (bit = 0..9 → mask = 1<<bit)
+-- READ=1 CREATE=2 UPDATE=4 DELETE=8 ENABLE=16 CLOSE=32
+-- DISABLE=64 EXPORT=128 AUDIT=256 PUBLISH=512
+-- PermAll = 1023
+-- =====================================================
+INSERT INTO `sys_action` (`id`, `code`, `name`, `bit`, `sort`) VALUES
+(1,  'READ',    '查看', 0, 1),
+(2,  'CREATE',  '新增', 1, 2),
+(3,  'UPDATE',  '修改', 2, 3),
+(4,  'DELETE',  '删除', 3, 4),
+(5,  'ENABLE',  '激活', 4, 5),
+(6,  'CLOSE',   '关闭', 5, 6),
+(7,  'DISABLE', '禁用', 6, 7),
+(8,  'EXPORT',  '导出', 7, 8),
+(9,  'AUDIT',   '审核', 8, 9),
+(10, 'PUBLISH', '发布', 9, 10);
 
-                               UNIQUE KEY uk_user_role (user_id, role_id),
-                               KEY idx_user_id (user_id),
-                               KEY idx_role_id (role_id)
-) COMMENT='用户角色关联表'
+INSERT INTO `sys_menu` (`id`, `parent_id`, `code`, `name`, `path`, `icon`, `sort`, `status`) VALUES
+(1, 0, 'user',     '用户管理', '/user',     'user',     1, 1),
+(2, 0, 'system',   '系统设置', '/system',   'setting',  2, 1),
+(3, 0, 'product',  '商品管理', '/product',  'goods',    3, 1),
+(4, 0, 'activity', '活动管理', '/activity', 'activity', 4, 1);
 
-CREATE TABLE sys_role_menu (
-                               id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                               role_id BIGINT NOT NULL,
-                               menu_id BIGINT NOT NULL,
-                               create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+INSERT INTO `sys_role` (`id`, `code`, `name`, `description`, `status`) VALUES
+(1, 'admin',  '超级管理员', '全部菜单全部操作', 1),
+(2, 'editor', '内容编辑',   '商品读写+上下架，用户只读', 1),
+(3, 'guest',  '访客',       '只读', 1);
 
-                               UNIQUE KEY uk_role_menu (role_id, menu_id),
-                               KEY idx_role_id (role_id),
-                               KEY idx_menu_id (menu_id)
-) COMMENT='角色菜单关联表';
+-- admin: 1023 = 前 10 位全开
+-- editor product: 1|2|4|16|32 = 55
+INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `mask`) VALUES
+(1, 1, 1023),
+(1, 2, 1023),
+(1, 3, 1023),
+(1, 4, 1023),
+(2, 1, 1),
+(2, 3, 55),
+(3, 1, 1),
+(3, 3, 1);
+
+-- user_id 对应 user 服务的用户主键
+INSERT INTO `sys_user_role` (`user_id`, `role_id`) VALUES
+(1, 1),
+(2, 2);

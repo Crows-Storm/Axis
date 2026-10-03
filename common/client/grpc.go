@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Crows-Storm/Axis/common/discovery/grpcx"
+	"github.com/Crows-Storm/Axis/common/genproto/authpb"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
 )
 
@@ -15,5 +16,14 @@ func NewUserGRPCClient(ctx context.Context) (userpb.UserServiceClient, func() er
 	}
 
 	client := userpb.NewUserServiceClient(conn)
-	return client, conn.Close, nil
+	// The connection stays in the grpcx pool. CloseAll owns its lifetime.
+	return client, func() error { return nil }, nil
+}
+
+func NewAuthGRPCClient(_ context.Context) (authpb.AuthServiceClient, func() error, error) {
+	conn, err := grpcx.DialService("auth")
+	if err != nil {
+		return nil, nil, err
+	}
+	return authpb.NewAuthServiceClient(conn), func() error { return nil }, nil
 }

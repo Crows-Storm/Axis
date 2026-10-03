@@ -10,7 +10,7 @@ import (
 )
 
 type GetUserQuery struct {
-	ID int64
+	ID uint64
 }
 
 func (g GetUserQuery) Validate() error {
@@ -21,7 +21,7 @@ func (g GetUserQuery) Validate() error {
 }
 
 type GetUserQueryResult struct {
-	ID      int64
+	ID      uint64
 	LoginID string
 	Email   string
 	Status  int32
@@ -52,14 +52,14 @@ func (g getUserQueryHandler) Handle(ctx context.Context, query GetUserQuery) (Ge
 	}
 
 	u, err := g.userService.GetUserById(ctx, &userpb.GetUserByIdRequest{
-		ID: query.ID,
+		Id: query.ID,
 	})
 
 	if err != nil {
 		return GetUserQueryResult{}, err
 	}
 	return GetUserQueryResult{
-		ID:      u.ID,
+		ID:      u.Id,
 		LoginID: u.LoginID,
 		Email:   u.Email,
 		Status:  u.Status,

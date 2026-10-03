@@ -4,7 +4,7 @@
 
 .DEFAULT_GOAL := help
 
-MOCK_SCRIPT := scripts/test_mock.sh
+MOCK_SCRIPT := scripts/mockery.sh
 
 gen: genproto genopenapi gen-mock gotidy
 	@echo "✅ All code generation completed!"

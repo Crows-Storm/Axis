@@ -10,13 +10,15 @@ import (
 	"github.com/Crows-Storm/Axis/common/discovery/grpcx"
 	"github.com/Crows-Storm/Axis/common/discovery/registry"
 	"github.com/Crows-Storm/Axis/common/domain/principal"
-	"github.com/Crows-Storm/Axis/common/util"
 	grpc_logger "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_tags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 )
 
 type TokenParser interface {
@@ -55,6 +57,12 @@ func RunGRPCServerWithLifecycle(
 
 	loggerEntry := logger.Entry()
 	grpcServer := grpc.NewServer(
+		// Client pings every 30s, including when idle. MinTime stays below that
+		// so a slightly early ping is not rejected with too_many_pings.
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             20 * time.Second,
+			PermitWithoutStream: true,
+		}),
 		grpc.ChainUnaryInterceptor(
 			unaryContextInterceptor(cfg.tokenParser, cfg.instanceID),
 			grpc_tags.UnaryServerInterceptor(grpc_tags.WithFieldExtractor(grpc_tags.CodeGenRequestFieldExtractor)),
@@ -74,16 +82,6 @@ func RunGRPCServerWithLifecycle(
 
 	registerServer(grpcServer)
 
-	if err := registrar.Register(ctx); err != nil {
-		logger.Error("consul register failed", "error", err)
-		errCh := make(chan error, 1)
-		errCh <- err
-		close(errCh)
-		return errCh
-	}
-
-	healthServer.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_SERVING)
-
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		logger.Error("listen failed", "error", err)
@@ -92,6 +90,17 @@ func RunGRPCServerWithLifecycle(
 		close(errCh)
 		return errCh
 	}
+
+	if err := registrar.Register(ctx); err != nil {
+		logger.Error("consul register failed", "error", err)
+		_ = lis.Close()
+		errCh := make(chan error, 1)
+		errCh <- err
+		close(errCh)
+		return errCh
+	}
+
+	healthServer.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_SERVING)
 	logger.Info("gRPC server started", "addr", addr)
 
 	errCh := make(chan error, 1)
@@ -103,15 +112,17 @@ func RunGRPCServerWithLifecycle(
 		}
 	}()
 
+	heartbeatDone := make(chan struct{})
 	go func() {
-		ticker := time.NewTicker(10 * time.Second)
+		defer close(heartbeatDone)
+		ticker := time.NewTicker(registry.HeartbeatInterval)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if err := registrar.HealthCheck(); err != nil {
+				if err := registrar.HealthCheck(ctx); err != nil && ctx.Err() == nil {
 					logger.Error("consul ttl heartbeat failed", "error", err)
 				}
 			}
@@ -123,10 +134,9 @@ func RunGRPCServerWithLifecycle(
 		logger.Info("gRPC server shutting down...")
 
 		healthServer.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+		<-heartbeatDone
 
-		time.Sleep(3 * time.Second)
-
-		if err := registrar.Deregister(); err != nil {
+		if err := registrar.Deregister(context.Background()); err != nil {
 			logger.Error("consul deregister failed", "error", err)
 		}
 
@@ -158,13 +168,21 @@ func RunGRPCServerWithLifecycle(
 
 func unaryContextInterceptor(parser TokenParser, instanceID string) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		return handler(restoreInboundContext(ctx, parser, instanceID), req)
+		ctx, err := restoreInboundContext(ctx, parser, instanceID)
+		if err != nil {
+			return nil, err
+		}
+		return handler(ctx, req)
 	}
 }
 
 func streamContextInterceptor(parser TokenParser, instanceID string) grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		return handler(srv, &inboundStream{ServerStream: ss, ctx: restoreInboundContext(ss.Context(), parser, instanceID)})
+		ctx, err := restoreInboundContext(ss.Context(), parser, instanceID)
+		if err != nil {
+			return err
+		}
+		return handler(srv, &inboundStream{ServerStream: ss, ctx: ctx})
 	}
 }
 
@@ -175,12 +193,11 @@ type inboundStream struct {
 
 func (s *inboundStream) Context() context.Context { return s.ctx }
 
-func restoreInboundContext(ctx context.Context, parser TokenParser, instanceID string) context.Context {
+func restoreInboundContext(ctx context.Context, parser TokenParser, instanceID string) (context.Context, error) {
 	builder := contextx.ExtractFromGRPCMetadata(ctx)
 	builder.WithInstanceID(instanceID)
 	if !builder.HasRequestID() {
-		builder.WithRequestID(util.UUIDV4().String())
-		logger.WithField("instance_id", instanceID).Warn("gRPC inbound missing request id, generated locally")
+		return ctx, status.Error(codes.InvalidArgument, "missing request id")
 	}
 	ctx = builder.Build(ctx)
 
@@ -189,12 +206,12 @@ func restoreInboundContext(ctx context.Context, parser TokenParser, instanceID s
 	if parser != nil && rawAuth != "" {
 		token, err := parser.Preprocessing(ctx, rawAuth)
 		if err != nil {
-			return ctx
+			return ctx, nil
 		}
 		if p, err := parser.Parse(ctx, token); err == nil {
 			ctx = principal.WithPrincipal(ctx, p)
 		}
 	}
 
-	return ctx
+	return ctx, nil
 }

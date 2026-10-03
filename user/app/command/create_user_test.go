@@ -7,6 +7,7 @@ import (
 
 	"github.com/Crows-Storm/Axis/common/decorator"
 	decoratormock "github.com/Crows-Storm/Axis/common/decorator/mocks"
+	"github.com/Crows-Storm/Axis/common/domain/event"
 	commuser "github.com/Crows-Storm/Axis/common/domain/user"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 	usermock "github.com/Crows-Storm/Axis/user/domain/user/mocks"
@@ -21,49 +22,45 @@ func TestCreateUserCommandHandler(t *testing.T) {
 	tests := []struct {
 		name      string
 		cmd       CreateUserCommand
-		setupMock func(repo *usermock.MockRepository, mc *decoratormock.MockMetricsClient)
+		setupMock func(repo *usermock.MockRepository, mc *decoratormock.MockMetricsClient, bus *decoratormock.MockEventBus)
 		wantErr   error
 	}{
 		{
 			name: "Created Success",
 			cmd: CreateUserCommand{
 				LoginID:  "testuser",
+				Username: "tester",
 				Password: passwordHash,
 				Email:    "test@example.com",
 			},
-			setupMock: func(repo *usermock.MockRepository, mc *decoratormock.MockMetricsClient) {
+			setupMock: func(repo *usermock.MockRepository, mc *decoratormock.MockMetricsClient, bus *decoratormock.MockEventBus) {
 				repo.On("ExistsWithTransaction", context.Background(), mock.AnythingOfType("uint64"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(false, nil)
-
-				//repo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).
-				//	Return(&domain.User{}, nil)
-
-				// NOTE: Check the user domain before calling repo.Create
 				repo.On("Create", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
-					// value-check
 					if u.ID > 0 &&
 						u.Status == commuser.Activated &&
 						u.LoginID == "testuser" &&
 						u.Password != "" &&
 						u.Email == "test@example.com" &&
-						u.Deleted == 0 { // value check
-						if len(u.Events()) == 2 {
-							return true
-						}
+						u.Deleted == 0 {
+						return len(u.Events()) == 2
 					}
 					return false
 				})).Return(&domain.User{}, nil)
-
 				mc.On("Inc", mock.Anything, mock.Anything).Maybe()
+				bus.On("Publish", mock.Anything, mock.MatchedBy(func(evs []event.Envelope[event.Message]) bool {
+					return len(evs) == 2
+				})).Return(nil)
 			},
 		},
 		{
 			name: "user already exists Return an error",
 			cmd: CreateUserCommand{
 				LoginID:  "existinguser",
+				Username: "tester",
 				Password: passwordHash,
 				Email:    "existing@example.com",
 			},
-			setupMock: func(repo *usermock.MockRepository, mc *decoratormock.MockMetricsClient) {
+			setupMock: func(repo *usermock.MockRepository, mc *decoratormock.MockMetricsClient, bus *decoratormock.MockEventBus) {
 				repo.On("ExistsWithTransaction", context.Background(), mock.AnythingOfType("uint64"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 					Return(true, nil)
 
@@ -80,14 +77,13 @@ func TestCreateUserCommandHandler(t *testing.T) {
 			name: "Database Error",
 			cmd: CreateUserCommand{
 				LoginID:  "testuser",
+				Username: "tester",
 				Password: passwordHash,
 				Email:    "test@example.com",
 			},
-			setupMock: func(repo *usermock.MockRepository, mc *decoratormock.MockMetricsClient) {
+			setupMock: func(repo *usermock.MockRepository, mc *decoratormock.MockMetricsClient, bus *decoratormock.MockEventBus) {
 				repo.On("ExistsWithTransaction", context.Background(), mock.AnythingOfType("uint64"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(false, nil)
-
 				repo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).Return(nil, errors.New("Invalid login id or password"))
-
 				mc.On("Inc", mock.Anything, mock.Anything).Maybe()
 			},
 			wantErr: errors.New("Invalid login id or password"),
@@ -98,13 +94,13 @@ func TestCreateUserCommandHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := new(usermock.MockRepository)
 			mc := new(decoratormock.MockMetricsClient)
+			bus := new(decoratormock.MockEventBus)
 
-			//mph := new(usermock.MockPasswordHasher)	// maybe no need mock, because its tool interface
 			mph := domain.NewHash256PasswordHelper()
 
-			tt.setupMock(repo, mc)
+			tt.setupMock(repo, mc, bus)
 
-			handler := NewCreateUserCommandHandler(repo, mc, mph)
+			handler := NewCreateUserCommandHandler(repo, mc, mph, bus)
 
 			// Act
 			result, err := handler.Handle(context.Background(), tt.cmd)
@@ -121,6 +117,7 @@ func TestCreateUserCommandHandler(t *testing.T) {
 
 			repo.AssertExpectations(t)
 			mc.AssertExpectations(t)
+			bus.AssertExpectations(t)
 		})
 	}
 }
@@ -135,6 +132,7 @@ func TestCreateUserCommand_Validate(t *testing.T) {
 			name: "Correct command",
 			cmd: CreateUserCommand{
 				LoginID:  "testuser",
+				Username: "tester",
 				Password: passwordHash,
 				Email:    "test@example.com",
 			},
@@ -142,22 +140,22 @@ func TestCreateUserCommand_Validate(t *testing.T) {
 		{
 			name:    "LoginID is empty",
 			cmd:     CreateUserCommand{LoginID: "", Password: passwordHash, Email: "test@example.com"},
-			wantErr: "login id or password or email cannot be empty.",
+			wantErr: "login id or password or email or username cannot be empty.",
 		},
 		{
 			name:    "Password is empty",
 			cmd:     CreateUserCommand{LoginID: "testuser", Password: "", Email: "test@example.com"},
-			wantErr: "login id or password or email cannot be empty.",
+			wantErr: "login id or password or email or username cannot be empty.",
 		},
 		{
 			name:    "Email is empty",
 			cmd:     CreateUserCommand{LoginID: "testuser", Password: passwordHash, Email: ""},
-			wantErr: "login id or password or email cannot be empty.",
+			wantErr: "login id or password or email or username cannot be empty.",
 		},
 		{
 			name:    "All fields are empty",
 			cmd:     CreateUserCommand{},
-			wantErr: "login id or password or email cannot be empty.",
+			wantErr: "login id or password or email or username cannot be empty.",
 		},
 	}
 
@@ -200,9 +198,10 @@ func BenchmarkCreateUserCommandHandler(b *testing.B) {
 		Return(&domain.User{}, nil)
 	mc.On("Inc", mock.Anything, mock.Anything).Maybe()
 
-	handler := NewCreateUserCommandHandler(repo, mc, mph)
+	handler := NewCreateUserCommandHandler(repo, mc, mph, nil)
 	cmd := CreateUserCommand{
 		LoginID:  "testuser",
+		Username: "tester",
 		Password: passwordHash,
 		Email:    "test@example.com",
 	}

@@ -1,9 +1,8 @@
 with-expecter: true
 disable-version-string: true
 filename: "mock_{{.InterfaceName | snakecase}}.go"
-structname: "Mock{{.InterfaceName}}"
-outpkg: "{{.PackageName}}"
-dir: "{{.InterfaceDir}}"
+outpkg: "{{.PackageName}}mock"
+dir: "{{.InterfaceDir}}/mocks"
 all: false
 issue-845-fix: true
 

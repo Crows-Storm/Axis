@@ -21,6 +21,7 @@ type Commands struct {
 
 type Queries struct {
 	GetUser            query.GetUserQueryHandler
+	PageUsers          query.PageUsersQueryHandler
 	UserExists         query.UserExistsHandler
 	UserStatusAnalysis query.UserStatusAnalysisHandler
 	VerifyLogin        query.VerifyLoginHandler

@@ -10,6 +10,7 @@ import (
 
 type Message interface {
 	Name() string
+	Domain() string
 }
 
 type Envelope[T Message] struct {
@@ -22,13 +23,8 @@ type Envelope[T Message] struct {
 	Timestamp time.Time
 
 	Message T
-	// The Metadata is
-	//MetadataRequestID     = "x-request-id"
-	//MetadataCorrelationID = "x-correlation-id"
-	//MetadataCausationId   = "x-causation-id"
-	//MetadataTraceID       = "x-trace-id"
-	//MetadataSpanID        = "x-span-id"
-	//MetadataParentSpanID  = "x-parent-span-id"
+	// Metadata is supporting context for the message (correlation, parent event_id).
+	// Hop tracing lives on contextx and is projected separately; hop causation is not stored here.
 	Metadata Metadata
 
 	// Reserved: Original underlying message reference

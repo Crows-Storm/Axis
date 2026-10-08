@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+option go_package = "github.com/Crows-Storm/Axis/common/genproto/exchangepb";
+
+service ExchangeService {
+  rpc Ping(PingRequest) returns (Status);
+
+  // get user the account information, all account
+  rpc Account(AccountRequest) returns (AccountResponse);
+}
+
+message PingRequest {}
+
+message Status {
+  string service = 1;
+  string role = 2;
+}
+
+message AccountRequest {
+  uint64 userID = 1;
+}
+
+message AccountResponse {
+  uint64 userID = 1;
+}

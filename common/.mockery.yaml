@@ -17,9 +17,9 @@ packages:
   github.com/Crows-Storm/Axis/common/genproto/userpb:
     interfaces:
       UserServiceServer: {}
-  github.com/Crows-Storm/Axis/common/genproto/walletpb:
+  github.com/Crows-Storm/Axis/common/genproto/accountpb:
     interfaces:
-      WalletServiceServer: {}
+      AccountServiceServer: {}
 
   # JWT Token Cache Repository
   github.com/Crows-Storm/Axis/common/jwt:

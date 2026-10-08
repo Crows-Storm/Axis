@@ -1,8 +1,10 @@
 openapi: 3.0.3
 info:
   title: Audit Service API
-  description: Read APIs for time-series audit events. Writes arrive from the message bus.
-  version: 1.0.0
+  description: >
+    Read APIs for domain-event audit. Writes arrive from the message bus.
+    A root event has a non-empty correlation_id and an empty causation_id.
+  version: 1.1.0
 
 servers:
   - url: http://localhost:18806/api
@@ -43,126 +45,199 @@ components:
             data:
               nullable: true
 
-    AuditMeta:
-      type: object
-      description: Time-series meta field (low cardinality)
-      properties:
-        service:
-          type: string
-          example: auth
-        event_name:
-          type: string
-          example: RoleCreated
-      required:
-        - service
-        - event_name
-
     AuditEvent:
       type: object
-      description: audit/domain/audit.Record
       properties:
-        occurred_at:
+        id:
           type: string
-          format: date-time
-        meta:
-          $ref: '#/components/schemas/AuditMeta'
         event_id:
           type: string
           example: evt-1
+        event_name:
+          type: string
+          example: UserCreated
+        operator_id:
+          type: integer
+          format: uint64
+        category:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          $ref: '#/components/schemas/AuditMetadata'
+      required:
+        - event_id
+        - event_name
+        - timestamp
+        - metadata
+
+    AuditMetadata:
+      type: object
+      properties:
+        service:
+          type: string
+          example: user
         aggregate_id:
           type: string
-          example: "42"
-        version:
-          type: integer
-          example: 1
+        correlation_id:
+          type: string
+        causation_id:
+          type: string
         payload:
           type: object
           additionalProperties: true
-        topic:
+      required:
+        - service
+
+    PageInfo:
+      type: object
+      properties:
+        start_cursor:
           type: string
-          example: axis.auth.role-created
-        partition:
-          type: integer
-          example: 0
-        offset:
+        end_cursor:
+          type: string
+        has_previous_page:
+          type: boolean
+        has_next_page:
+          type: boolean
+      required:
+        - has_previous_page
+        - has_next_page
+
+    AuditEventEdge:
+      type: object
+      properties:
+        cursor:
+          type: string
+        node:
+          $ref: '#/components/schemas/AuditEvent'
+      required:
+        - cursor
+        - node
+
+    AuditEventConnection:
+      type: object
+      properties:
+        total_count:
           type: integer
           format: int64
-          example: 9
+          description: Omitted as 0 for Mongo cursor pages (no full collection count)
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEventEdge'
+        page_info:
+          $ref: '#/components/schemas/PageInfo'
       required:
-        - occurred_at
-        - meta
+        - edges
+        - page_info
+
+    AuditEventNode:
+      type: object
+      properties:
+        event:
+          $ref: '#/components/schemas/AuditEvent'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEventNode'
+      required:
+        - event
+
+    AuditEventGraph:
+      type: object
+      description: Forest of events sharing the requested event's correlation_id
+      properties:
+        event_id:
+          type: string
+        roots:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEventNode'
+      required:
         - event_id
+        - roots
 
-    AuditEventResponse:
+    AuditEventPageResponse:
       allOf:
         - $ref: '#/components/schemas/BaseResponse'
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/AuditEvent'
+              $ref: '#/components/schemas/AuditEventConnection'
 
-    AuditEventListResponse:
+    AuditEventGraphResponse:
       allOf:
         - $ref: '#/components/schemas/BaseResponse'
         - type: object
           properties:
             data:
-              type: array
-              items:
-                $ref: '#/components/schemas/AuditEvent'
+              $ref: '#/components/schemas/AuditEventGraph'
 
 paths:
-  /events:
+  /events/page:
     get:
-      summary: List audit events in a time window
+      summary: Page root audit events
       description: >
-        Queries the audit_events time-series collection. from and to bound occurred_at,
-        with to exclusive. Optional service and event_name filter the meta field.
-      operationId: listAuditEvents
+        Cursor-based page of root events (correlation_id != "" and causation_id == "").
+        Default page size is 20. Newest timestamp first. first/after page forward;
+        last/before page backward. Do not mix first with last.
+      operationId: pageRootEvents
       tags:
         - Audit
       security:
         - BearerAuth: []
       parameters:
-        - name: from
+        - name: first
           in: query
-          required: true
-          schema:
-            type: string
-            format: date-time
-        - name: to
-          in: query
-          required: true
-          schema:
-            type: string
-            format: date-time
-        - name: service
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: event_name
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: limit
-          in: query
-          required: false
           schema:
             type: integer
             minimum: 1
             maximum: 100
             default: 20
+        - name: after
+          in: query
+          schema:
+            type: string
+        - name: last
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: before
+          in: query
+          schema:
+            type: string
+        - name: service
+          in: query
+          schema:
+            type: string
+        - name: event_name
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+            description: Exclusive upper bound on timestamp when from is also set
       responses:
         '200':
-          description: Events in the window, newest first
+          description: Root event page
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuditEventListResponse'
+                $ref: '#/components/schemas/AuditEventPageResponse'
         '400':
-          description: Invalid window
+          description: Invalid pagination or window
           content:
             application/json:
               schema:
@@ -176,8 +251,12 @@ paths:
 
   /events/{event_id}:
     get:
-      summary: Get one audit event by event id
-      operationId: getAuditEvent
+      summary: Get event flow graph
+      description: >
+        Returns the requested event's correlation forest. Sibling roots (same
+        correlation_id, empty causation_id) appear as multiple roots. Children
+        attach by causation_id = parent event_id.
+      operationId: getEventGraph
       tags:
         - Audit
       security:
@@ -190,11 +269,11 @@ paths:
             type: string
       responses:
         '200':
-          description: Audit event
+          description: Event graph
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuditEventResponse'
+                $ref: '#/components/schemas/AuditEventGraphResponse'
         '404':
           description: Not found
           content:

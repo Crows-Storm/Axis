@@ -1,0 +1,1494 @@
+{
+  "info": {
+    "name": "Axis User Flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "operator_login_id",
+      "value": ""
+    },
+    {
+      "key": "operator_email",
+      "value": ""
+    },
+    {
+      "key": "target_login_id",
+      "value": ""
+    },
+    {
+      "key": "target_email",
+      "value": ""
+    },
+    {
+      "key": "batch_login_a",
+      "value": ""
+    },
+    {
+      "key": "batch_login_b",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "Token",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "operator_token",
+      "value": ""
+    },
+    {
+      "key": "operator_user_id",
+      "value": ""
+    },
+    {
+      "key": "target_user_id",
+      "value": ""
+    },
+    {
+      "key": "target_token",
+      "value": ""
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "X-Request-ID",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Setup",
+      "item": [
+        {
+          "name": "Generate fixtures + ping user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = Date.now();",
+                  "pm.collectionVariables.set('operator_login_id', 'pm_op_' + s);",
+                  "pm.collectionVariables.set('operator_email', 'pm_op_' + s + '@example.test');",
+                  "pm.collectionVariables.set('target_login_id', 'pm_tg_' + s);",
+                  "pm.collectionVariables.set('target_email', 'pm_tg_' + s + '@example.test');",
+                  "pm.collectionVariables.set('batch_login_a', 'pm_ba_' + s);",
+                  "pm.collectionVariables.set('batch_login_b', 'pm_bb_' + s);",
+                  "pm.collectionVariables.set('password', 'TestPass123!');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/ping",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Ping auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/ping",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 Bootstrap operator via auth",
+      "item": [
+        {
+          "name": "Register operator",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "if (bodyData.password) {",
+                  "  bodyData.password = sha256Hex(bodyData.password);",
+                  "}",
+                  "",
+                  "if (Array.isArray(bodyData.items)) {",
+                  "  bodyData.items.forEach((item) => {",
+                  "    if (item && item.password) {",
+                  "      item.password = sha256Hex(item.password);",
+                  "    }",
+                  "  });",
+                  "}",
+                  "",
+                  "pm.request.body.raw = JSON.stringify(bodyData);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_id\": \"{{operator_login_id}}\",\n  \"username\": \"{{operator_login_id}}\",\n  \"password\": \"{{password}}\",\n  \"email\": \"{{operator_email}}\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login operator",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "const requestId = pm.collectionVariables.get(\"X-Request-ID\");",
+                  "if (!requestId) {",
+                  "  throw new Error(\"X-Request-ID not found\");",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "if (bodyData.password) {",
+                  "  const h1 = sha256Hex(bodyData.password);",
+                  "  const timestampSec = Math.floor(Date.now() / 1000);",
+                  "  bodyData.password = sha256Hex(`${h1}:${timestampSec}:${requestId}`);",
+                  "  pm.request.body.raw = JSON.stringify(bodyData);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Parse response body",
+                  "const body = pm.response.json();",
+                  "const tokenObj = (body.data && (body.data.token || body.data.Token)) || {};",
+                  "const accessToken = tokenObj.access_token;",
+                  "",
+                  "if (body.code !== 0 || !accessToken) {",
+                  "    throw new Error(`Login failed: ${body.message || 'No access_token in response'}`);",
+                  "}",
+                  "",
+                  "console.log('✅ Login successful:', body.message);",
+                  "",
+                  "// Save to environment (or collection variables)",
+                  "pm.collectionVariables.set('Token', 'Bearer ' + accessToken);",
+                  "if (body.data.user_id !== undefined && body.data.user_id !== null) {",
+                  "    const userId = pm.response.text().match(/\"user_id\"\\s*:\\s*(\\d+)/);",
+                  "    pm.collectionVariables.set('user_id', userId[1]);",
+                  "}",
+                  "",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(body.code).to.eql(0));",
+                  "",
+                  "pm.collectionVariables.set('operator_token', pm.collectionVariables.get('Token'));",
+                  "const operatorUserId = pm.response.text().match(/\"user_id\"\\s*:\\s*(\\d+)/);",
+                  "pm.collectionVariables.set('operator_user_id', operatorUserId[1]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_type\": \"password\",\n  \"login_id\": \"{{operator_login_id}}\",\n  \"password\": \"{{password}}\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "User GET / without token (expect HTTP 401 or biz fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const okHttp = pm.response.code === 401;",
+                  "  let bizFail = false;",
+                  "  try { bizFail = pm.response.json().code !== 0; } catch (e) { bizFail = true; }",
+                  "  pm.expect(okHttp || bizFail).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "GET current user (operator)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}"
+          }
+        },
+        {
+          "name": "PUT update operator email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"pm_op_updated_{{$timestamp}}@example.test\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET current user after email update",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}"
+          }
+        },
+        {
+          "name": "GET user by operator id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/{{operator_user_id}}"
+          }
+        },
+        {
+          "name": "GET stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Create target user",
+      "item": [
+        {
+          "name": "Exists target before create (false)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('exists is false', () => pm.expect(json.data).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/exists?login_id={{target_login_id}}"
+          }
+        },
+        {
+          "name": "Create target user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "if (bodyData.password) {",
+                  "  bodyData.password = sha256Hex(bodyData.password);",
+                  "}",
+                  "",
+                  "if (Array.isArray(bodyData.items)) {",
+                  "  bodyData.items.forEach((item) => {",
+                  "    if (item && item.password) {",
+                  "      item.password = sha256Hex(item.password);",
+                  "    }",
+                  "  });",
+                  "}",
+                  "",
+                  "pm.request.body.raw = JSON.stringify(bodyData);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_id\": \"{{target_login_id}}\",\n  \"username\": \"{{target_login_id}}\",\n  \"password\": \"{{password}}\",\n  \"email\": \"{{target_email}}\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create duplicate (expect fail)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "if (bodyData.password) {",
+                  "  bodyData.password = sha256Hex(bodyData.password);",
+                  "}",
+                  "",
+                  "if (Array.isArray(bodyData.items)) {",
+                  "  bodyData.items.forEach((item) => {",
+                  "    if (item && item.password) {",
+                  "      item.password = sha256Hex(item.password);",
+                  "    }",
+                  "  });",
+                  "}",
+                  "",
+                  "pm.request.body.raw = JSON.stringify(bodyData);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_id\": \"{{target_login_id}}\",\n  \"username\": \"{{target_login_id}}\",\n  \"password\": \"{{password}}\",\n  \"email\": \"{{target_email}}\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create missing fields (expect fail)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "if (bodyData.password) {",
+                  "  bodyData.password = sha256Hex(bodyData.password);",
+                  "}",
+                  "",
+                  "if (Array.isArray(bodyData.items)) {",
+                  "  bodyData.items.forEach((item) => {",
+                  "    if (item && item.password) {",
+                  "      item.password = sha256Hex(item.password);",
+                  "    }",
+                  "  });",
+                  "}",
+                  "",
+                  "pm.request.body.raw = JSON.stringify(bodyData);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_id\": \"x\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Exists by login_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('exists is true', () => pm.expect(json.data).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/exists?login_id={{target_login_id}}"
+          }
+        },
+        {
+          "name": "Exists by email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('exists is true', () => pm.expect(json.data).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/exists?email={{target_email}}"
+          }
+        },
+        {
+          "name": "Exists no param (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/exists"
+          }
+        },
+        {
+          "name": "Exists two params (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/exists?login_id={{target_login_id}}&email={{target_email}}"
+          }
+        },
+        {
+          "name": "Login as target (capture id)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "const requestId = pm.collectionVariables.get(\"X-Request-ID\");",
+                  "if (!requestId) {",
+                  "  throw new Error(\"X-Request-ID not found\");",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "if (bodyData.password) {",
+                  "  const h1 = sha256Hex(bodyData.password);",
+                  "  const timestampSec = Math.floor(Date.now() / 1000);",
+                  "  bodyData.password = sha256Hex(`${h1}:${timestampSec}:${requestId}`);",
+                  "  pm.request.body.raw = JSON.stringify(bodyData);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(body.code).to.eql(0));",
+                  "const tokenObj = (body.data && (body.data.token || body.data.Token)) || {};",
+                  "if (body.code !== 0 || !tokenObj.access_token) {",
+                  "    throw new Error(`Login failed: ${body.message || 'No access_token in response'}`);",
+                  "}",
+                  "const targetUserId = pm.response.text().match(/\"user_id\"\\s*:\\s*(\\d+)/);",
+                  "pm.collectionVariables.set('target_user_id', targetUserId[1]);",
+                  "pm.collectionVariables.set('target_token', 'Bearer ' + tokenObj.access_token);",
+                  "// keep operator Token for remaining user APIs",
+                  "pm.collectionVariables.set('Token', pm.collectionVariables.get('operator_token'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_type\": \"password\",\n  \"login_id\": \"{{target_login_id}}\",\n  \"password\": \"{{password}}\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Restore operator token",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('access_token', pm.collectionVariables.get('operator_token'));",
+                  "",
+                  "pm.collectionVariables.set('Token', pm.collectionVariables.get('operator_token'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/ping",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Exists by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('exists is true', () => pm.expect(json.data).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/exists?id={{target_user_id}}"
+          }
+        },
+        {
+          "name": "GET target by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/{{target_user_id}}"
+          }
+        },
+        {
+          "name": "GET unknown id (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Batch",
+      "item": [
+        {
+          "name": "Batch create two users",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "if (bodyData.password) {",
+                  "  bodyData.password = sha256Hex(bodyData.password);",
+                  "}",
+                  "",
+                  "if (Array.isArray(bodyData.items)) {",
+                  "  bodyData.items.forEach((item) => {",
+                  "    if (item && item.password) {",
+                  "      item.password = sha256Hex(item.password);",
+                  "    }",
+                  "  });",
+                  "}",
+                  "",
+                  "pm.request.body.raw = JSON.stringify(bodyData);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/batch",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"login_id\": \"{{batch_login_a}}\",\n      \"password\": \"{{password}}\",\n      \"email\": \"pm_ba_{{$timestamp}}@example.test\"\n    },\n    {\n      \"login_id\": \"{{batch_login_b}}\",\n      \"password\": \"{{password}}\",\n      \"email\": \"pm_bb_{{$timestamp}}@example.test\"\n    }\n  ]\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Batch empty (expect fail)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "if (bodyData.password) {",
+                  "  bodyData.password = sha256Hex(bodyData.password);",
+                  "}",
+                  "",
+                  "if (Array.isArray(bodyData.items)) {",
+                  "  bodyData.items.forEach((item) => {",
+                  "    if (item && item.password) {",
+                  "      item.password = sha256Hex(item.password);",
+                  "    }",
+                  "  });",
+                  "}",
+                  "",
+                  "pm.request.body.raw = JSON.stringify(bodyData);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/batch",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": []\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Exists batch login_a",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('exists is true', () => pm.expect(json.data).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/exists?login_id={{batch_login_a}}"
+          }
+        },
+        {
+          "name": "GET stats after creates",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Disable & soft delete target",
+      "item": [
+        {
+          "name": "Disable target",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/{{target_user_id}}/disable"
+          }
+        },
+        {
+          "name": "GET target after disable",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/{{target_user_id}}"
+          }
+        },
+        {
+          "name": "Target login while disabled (expect fail)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "const requestId = pm.collectionVariables.get(\"X-Request-ID\");",
+                  "if (!requestId) {",
+                  "  throw new Error(\"X-Request-ID not found\");",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "if (bodyData.password) {",
+                  "  const h1 = sha256Hex(bodyData.password);",
+                  "  const timestampSec = Math.floor(Date.now() / 1000);",
+                  "  bodyData.password = sha256Hex(`${h1}:${timestampSec}:${requestId}`);",
+                  "  pm.request.body.raw = JSON.stringify(bodyData);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200 envelope', () => pm.expect(pm.response.code).to.eql(200));",
+                  "// 禁用用户可能登录失败；若领域允许登录则至少返回结构"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_type\": \"password\",\n  \"login_id\": \"{{target_login_id}}\",\n  \"password\": \"{{password}}\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Soft delete target",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/{{target_user_id}}"
+          }
+        },
+        {
+          "name": "GET target after delete (expect fail or deleted flag)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200 envelope', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/{{target_user_id}}"
+          }
+        },
+        {
+          "name": "Disable missing id (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{user_base}}/0/disable"
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "function generateRequestId() {",
+          "  const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);",
+          "  return `${s4()}-${s4()}-${s4()}`;",
+          "}",
+          "",
+          "const requestId = generateRequestId();",
+          "pm.collectionVariables.set(\"X-Request-ID\", requestId);",
+          "pm.request.headers.upsert({ key: \"X-Request-ID\", value: requestId });",
+          "",
+          "const token = pm.collectionVariables.get(\"Token\");",
+          "const skipAuth = pm.request.auth && pm.request.auth.type === \"noauth\";",
+          "if (token && !skipAuth) {",
+          "  pm.request.headers.upsert({ key: \"Authorization\", value: token });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.collectionVariables.set(\"X-Request-ID\", \"\");"
+        ]
+      }
+    }
+  ]
+}

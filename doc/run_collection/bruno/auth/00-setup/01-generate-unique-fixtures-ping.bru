@@ -1,0 +1,37 @@
+meta {
+  name: Generate unique fixtures + ping
+  type: http
+  seq: 1
+}
+get {
+  url: {{auth_base}}/ping
+  body: none
+  auth: none
+}
+headers {
+  X-Request-ID: {{X-Request-ID}}
+}
+script:pre-request {
+  const s = Date.now();
+  bru.setVar('login_id', 'pm_auth_' + s);
+  bru.setVar('email', 'pm_auth_' + s + '@example.test');
+  bru.setVar('password', 'TestPass123!');
+  bru.setVar('role_code', 'pm_role_' + s);
+  bru.setVar('menu_code', 'pm_menu_' + s);
+  bru.setVar('child_menu_code', 'pm_menu_child_' + s);
+}
+tests {
+  function __raw() {
+    const value = res.getBody();
+    return typeof value === "string" ? value : JSON.stringify(value);
+  }
+
+  function __json() {
+    const value = res.getBody();
+    return typeof value === "string" ? JSON.parse(value) : value;
+  }
+
+  const json = __json();
+  test('HTTP 200', () => expect(res.status).to.eql(200));
+  test('business code 0', () => expect(json.code).to.eql(0));
+}

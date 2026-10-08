@@ -17,6 +17,7 @@ import (
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/decorator"
 	"github.com/Crows-Storm/Axis/common/jwt"
+	"github.com/Crows-Storm/Axis/common/rbac"
 	"github.com/Crows-Storm/Axis/common/server/cache"
 	"github.com/Crows-Storm/Axis/common/server/store"
 )
@@ -27,6 +28,7 @@ type ApplicationDependencies struct {
 	Issuer        *jwt.JWTIssuer
 	MetricsClient decorator.MetricsClient
 	EventBus      decorator.EventBus
+	Authorizer    *rbac.Authorizer
 }
 
 func NewApplication(
@@ -48,8 +50,12 @@ func NewApplication(
 	roleRepo := adapters.NewRoleMariaRepository(deps.Store)
 	menuRepo := adapters.NewMenuMariaRepository(deps.Store)
 	permRepo := adapters.NewPermissionMariaRepository(deps.Store)
+	authz := deps.Authorizer
+	if authz == nil {
+		authz = rbac.NewAuthorizer(rbac.NewRedis(deps.CacheClient), adapters.NewMariaRBACSource(deps.Store))
+	}
 
-	return newApplication(ctx, userGRPC, deps.CacheClient, authService, roleRepo, menuRepo, permRepo, deps.MetricsClient, deps.EventBus), func() {
+	return newApplication(ctx, userGRPC, deps.CacheClient, authService, roleRepo, menuRepo, permRepo, authz, deps.MetricsClient, deps.EventBus), func() {
 		_ = closeUserGRPCClient()
 		if deps.EventBus != nil {
 			_ = deps.EventBus.Close()
@@ -65,6 +71,7 @@ func newApplication(
 	roleRepo role.Repository,
 	menuRepo menu.Repository,
 	permRepo permission.Repository,
+	authz *rbac.Authorizer,
 	metricsClient decorator.MetricsClient,
 	bus decorator.EventBus,
 ) app.Application {
@@ -76,25 +83,50 @@ func newApplication(
 				cacheClient,
 				metricsClient,
 			),
-			Login:              command.NewLoginCommandHandler(userService, authService, roleRepo, metricsClient),
-			Logout:             command.NewLogoutCommandHandler(authService, metricsClient),
-			AssignUserRole:     command.NewAssignUserRoleCommandHandler(roleRepo, metricsClient, bus),
-			UnassignUserRole:   command.NewUnassignUserRoleCommandHandler(roleRepo, metricsClient, bus),
-			ReplaceUserRoles:   command.NewReplaceUserRolesCommandHandler(roleRepo, metricsClient, bus),
-			UpdateRoleMenuMask: command.NewUpdateRoleMenuMaskCommandHandler(roleRepo, metricsClient, bus),
-			RevokeRoleMenu:     command.NewRevokeRoleMenuCommandHandler(roleRepo, metricsClient, bus),
-			CreateRole:         command.NewCreateRoleCommandHandler(roleRepo, metricsClient, bus),
-			UpdateRole:         command.NewUpdateRoleCommandHandler(roleRepo, metricsClient, bus),
-			UpdateRoleStatus:   command.NewUpdateRoleStatusCommandHandler(roleRepo, metricsClient, bus),
-			CreateMenu:         command.NewCreateMenuCommandHandler(menuRepo, metricsClient, bus),
-			UpdateMenu:         command.NewUpdateMenuCommandHandler(menuRepo, metricsClient, bus),
-			UpdateMenuStatus:   command.NewUpdateMenuStatusCommandHandler(menuRepo, metricsClient, bus),
+			Login: loginAndWarm{
+				inner: command.NewLoginCommandHandler(userService, authService, roleRepo, metricsClient),
+				authz: authz,
+			},
+			Logout: command.NewLogoutCommandHandler(authService, metricsClient),
+			AssignUserRole: afterOK(command.NewAssignUserRoleCommandHandler(roleRepo, metricsClient, bus), func(ctx context.Context, cmd command.AssignUserRoleCommand) {
+				_ = authz.InvalidateUser(ctx, cmd.UserID)
+			}),
+			UnassignUserRole: afterOK(command.NewUnassignUserRoleCommandHandler(roleRepo, metricsClient, bus), func(ctx context.Context, cmd command.UnassignUserRoleCommand) {
+				_ = authz.InvalidateUser(ctx, cmd.UserID)
+			}),
+			ReplaceUserRoles: afterOK(command.NewReplaceUserRolesCommandHandler(roleRepo, metricsClient, bus), func(ctx context.Context, cmd command.ReplaceUserRolesCommand) {
+				_ = authz.InvalidateUser(ctx, cmd.UserID)
+			}),
+			UpdateRoleMenuMask: afterOK(command.NewUpdateRoleMenuMaskCommandHandler(roleRepo, metricsClient, bus), func(ctx context.Context, cmd command.UpdateRoleMenuMaskCommand) {
+				_ = authz.InvalidateRole(ctx, cmd.RoleID)
+			}),
+			RevokeRoleMenu: afterOK(command.NewRevokeRoleMenuCommandHandler(roleRepo, metricsClient, bus), func(ctx context.Context, cmd command.RevokeRoleMenuCommand) {
+				_ = authz.InvalidateRole(ctx, cmd.RoleID)
+			}),
+			CreateRole: command.NewCreateRoleCommandHandler(roleRepo, metricsClient, bus),
+			UpdateRole: command.NewUpdateRoleCommandHandler(roleRepo, metricsClient, bus),
+			UpdateRoleStatus: afterOK(command.NewUpdateRoleStatusCommandHandler(roleRepo, metricsClient, bus), func(ctx context.Context, cmd command.UpdateRoleStatusCommand) {
+				_ = authz.InvalidateRole(ctx, cmd.RoleID)
+			}),
+			CreateMenu: command.NewCreateMenuCommandHandler(menuRepo, metricsClient, bus),
+			UpdateMenu: afterOK(command.NewUpdateMenuCommandHandler(menuRepo, metricsClient, bus), func(ctx context.Context, cmd command.UpdateMenuCommand) {
+				current, err := menuRepo.Get(ctx, cmd.MenuID)
+				if err == nil {
+					_ = authz.InvalidateMenu(ctx, current.Code)
+				}
+			}),
+			UpdateMenuStatus: afterOK(command.NewUpdateMenuStatusCommandHandler(menuRepo, metricsClient, bus), func(ctx context.Context, cmd command.UpdateMenuStatusCommand) {
+				current, err := menuRepo.Get(ctx, cmd.MenuID)
+				if err == nil {
+					_ = authz.InvalidateMenu(ctx, current.Code)
+				}
+			}),
 		},
 		Queries: app.Queries{
 			GetUser:             query.NewGetUserQueryHandler(userService, metricsClient),
 			GetUserRoles:        query.NewGetUserRolesQueryHandler(roleRepo, metricsClient),
 			GetUserMenuTree:     query.NewGetUserMenuTreeQueryHandler(menuRepo, permRepo, metricsClient),
-			CheckMenuPermission: query.NewCheckMenuPermissionQueryHandler(permRepo, metricsClient),
+			CheckMenuPermission: query.NewCheckMenuPermissionQueryHandler(authz, metricsClient),
 			ListRoles:           query.NewListRolesQueryHandler(roleRepo, metricsClient),
 			GetRole:             query.NewGetRoleQueryHandler(roleRepo, menuRepo, metricsClient),
 			ListAssignedRoles:   query.NewListAssignedRolesQueryHandler(roleRepo, metricsClient),

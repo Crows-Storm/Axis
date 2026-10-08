@@ -1,5 +1,13 @@
 package pagination
 
+import "errors"
+
+var (
+	ErrInvalidArgs       = errors.New("invalid pagination arguments")
+	ErrFirstLastConflict = errors.New("cannot use both first and last")
+	ErrInvalidCursor     = errors.New("invalid cursor")
+)
+
 type Connection[T any] struct {
 	TotalCount int64      `json:"total_count"`
 	Edges      []*Edge[T] `json:"edges"`
@@ -19,24 +27,23 @@ type PageInfo struct {
 }
 
 type Args struct {
-	First  *int    `json:"first"  validate:"omitempty,min=1,max=100"`
+	First  *int    `json:"first"`
 	After  *string `json:"after"`
-	Last   *int    `json:"last"   validate:"omitempty,min=1,max=100"`
+	Last   *int    `json:"last"`
 	Before *string `json:"before"`
 }
 
 type Direction int
 
 const (
-	Forward Direction = iota // 向后翻（first + after）
+	Forward Direction = iota
 	Backward
 )
 
 type Resolved struct {
 	Direction Direction
 	Limit     int
-	Cursor    *string // Decoded cursor value (Value of the sorting field)
-	CursorID  *string // Decoded cursor value (ID used for deduplication)
+	Cursor    *string
 }
 
 const (

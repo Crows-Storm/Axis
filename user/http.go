@@ -5,6 +5,7 @@ import (
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/contextx"
+	"github.com/Crows-Storm/Axis/common/pagination"
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/Crows-Storm/Axis/user/app"
 	"github.com/Crows-Storm/Axis/user/app/command"
@@ -18,6 +19,8 @@ import (
 type HTTPServer struct {
 	app app.Application
 }
+
+var _ protos.ServerInterface = (*HTTPServer)(nil)
 
 func (H HTTPServer) CreateUser(c *gin.Context) {
 	var req command.CreateUserCommand
@@ -33,6 +36,44 @@ func (H HTTPServer) CreateUser(c *gin.Context) {
 	}
 	server.Success(c, result)
 	return
+}
+
+func (H HTTPServer) Enable(c *gin.Context, id uint64) {
+	result, err := H.app.Commands.Activation.Handle(c, command.ActivationUserCommand{
+		ID: id,
+	})
+	if err != nil {
+		server.ErrorWithCodeAndMessage(c, server.CodeBadRequest, err.Error())
+		return
+	}
+	server.Success(c, result)
+}
+
+func (H HTTPServer) PageUsers(c *gin.Context, params protos.PageUsersParams) {
+	q := query.PageUsersQuery{
+		Args: pagination.Args{
+			First:  params.First,
+			After:  params.After,
+			Last:   params.Last,
+			Before: params.Before,
+		},
+	}
+	if params.LoginId != nil {
+		q.LoginID = *params.LoginId
+	}
+	if params.Email != nil {
+		q.Email = *params.Email
+	}
+	if params.Status != nil {
+		status := int8(*params.Status)
+		q.Status = &status
+	}
+	rows, err := H.app.Queries.PageUsers.Handle(c, q)
+	if err != nil {
+		server.ErrorWithCodeAndMessage(c, server.CodeBadRequest, err.Error())
+		return
+	}
+	server.Success(c, rows)
 }
 
 func (H HTTPServer) Disable(c *gin.Context, id uint64) {

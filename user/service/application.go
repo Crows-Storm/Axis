@@ -5,8 +5,8 @@ import (
 
 	"github.com/Crows-Storm/Axis/common/decorator"
 	"github.com/Crows-Storm/Axis/common/jwt"
-	"github.com/Crows-Storm/Axis/common/metrics"
 	"github.com/Crows-Storm/Axis/common/server/cache"
+	"github.com/Crows-Storm/Axis/common/server/metrics"
 	"github.com/Crows-Storm/Axis/common/server/store"
 	"github.com/Crows-Storm/Axis/user/adapters"
 	"github.com/Crows-Storm/Axis/user/app"
@@ -69,6 +69,7 @@ func newApplication(
 		},
 		Queries: app.Queries{
 			GetUser:            query.NewGetUserQueryHandler(dbRepo, metricsClient),
+			PageUsers:          query.NewPageUsersQueryHandler(dbRepo, metricsClient),
 			UserExists:         query.NewUserExistsHandler(dbRepo, metricsClient),
 			UserStatusAnalysis: query.NewUserStatusAnalysisHandler(dbRepo, metricsClient),
 			VerifyLogin:        query.NewVerifyLoginHandler(dbRepo, metricsClient, hasher),

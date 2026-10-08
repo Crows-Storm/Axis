@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Auth Service API
-  description: All web APIs for Auth service
+  description: All Axis-web APIs for Auth service
   version: 1.0.0
 
 servers:
@@ -175,6 +175,9 @@ components:
         login_id:
           type: string
           example: "johndoe"
+        username:
+          type: string
+          example: "johndoe"
         password:
           type: string
           format: password
@@ -211,6 +214,11 @@ components:
         ticket:
           type: string
           description: QR ticket when login_type=qrcode
+        audience:
+          type: string
+          description: app = 用户端, console = 管理端; omitted defaults to app
+          enum: [app, console]
+          example: console
       required:
         - login_type
 
@@ -303,6 +311,11 @@ components:
         sort:
           type: integer
           example: 3
+        status:
+          type: integer
+          description: 0 = hidden, 1 = visible
+          enum: [0, 1]
+          example: 1
         mask:
           type: integer
           format: uint64

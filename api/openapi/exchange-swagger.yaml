@@ -1,0 +1,88 @@
+openapi: 3.0.3
+info:
+  title: Exchange Service API
+  description: >
+    Exchange integration. Venue accounts, order routing, and fill ingest.
+    Market prices come from market; on-chain settlement and watchers live in chain.
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:18808/api
+    description: Local development server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    BaseResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: Successfully
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - code
+        - message
+        - timestamp
+
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              nullable: true
+
+    ServiceStatus:
+      type: object
+      properties:
+        service:
+          type: string
+          example: exchange
+        role:
+          type: string
+          example: exchange-integration
+      required:
+        - service
+        - role
+
+    ServiceStatusResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ServiceStatus'
+
+paths:
+  /status:
+    get:
+      summary: Service identity
+      operationId: getStatus
+      tags:
+        - Exchange
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Service role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceStatusResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

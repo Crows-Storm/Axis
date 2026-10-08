@@ -28,3 +28,7 @@ func NewUserCreatedMessage(aggregateID uint64, loginID, email, username string) 
 func (u UserCreatedMessage) Name() string {
 	return "UserCreated"
 }
+
+func (u UserCreatedMessage) Domain() string {
+	return "user"
+}

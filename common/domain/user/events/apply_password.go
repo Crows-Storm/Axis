@@ -22,3 +22,7 @@ func NewUserApplyPasswordMessage(aggregateID uint64, loginID string) *UserApplyP
 func (u UserApplyPasswordMessage) Name() string {
 	return "UserApplyPassword"
 }
+
+func (u UserApplyPasswordMessage) Domain() string {
+	return "user"
+}

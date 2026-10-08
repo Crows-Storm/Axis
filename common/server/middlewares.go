@@ -1,13 +1,16 @@
 package server
 
 import (
+	"errors"
 	"time"
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	"github.com/Crows-Storm/Axis/common/contextx"
 	"github.com/Crows-Storm/Axis/common/domain/principal"
 	"github.com/Crows-Storm/Axis/common/jwt"
+	"github.com/Crows-Storm/Axis/common/rbac"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 var publicPaths = map[string]bool{
@@ -40,19 +43,19 @@ func LoggerMiddleware() gin.HandlerFunc {
 		duration := time.Since(start)
 		r := contextx.FromGinContext(c)
 
-		logger.Info("HTTP request",
-			"method", c.Request.Method,
-			"path", c.FullPath(),
-			"status", c.Writer.Status(),
-			"duration_ms", duration.Milliseconds(),
-			"request_id", r.RequestID(),
-			"correlation_id", r.CorrelationID(),
-			"causation_id", r.CausationID(),
-			"span_id", r.SpanID(),
-			"instance_id", r.InstanceID(),
-			"user_id", r.UserID(),
-			"client_ip", r.ClientIP(),
-		)
+		logger.WithFields(logrus.Fields{
+			"method":         c.Request.Method,
+			"path":           c.FullPath(),
+			"status":         c.Writer.Status(),
+			"duration_ms":    duration.Milliseconds(),
+			"request_id":     r.RequestID(),
+			"correlation_id": r.CorrelationID(),
+			"causation_id":   r.CausationID(),
+			"span_id":        r.SpanID(),
+			"instance_id":    r.InstanceID(),
+			"user_id":        r.UserID(),
+			"client_ip":      r.ClientIP(),
+		}).Info("HTTP request")
 	}
 }
 
@@ -90,9 +93,38 @@ func RateLimitMiddleware() gin.HandlerFunc {
 	}
 }
 
-// TODO
-func PermissionMiddleware() gin.HandlerFunc {
+func PermissionMiddleware(authorizer *rbac.Authorizer) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Next()
+		if authorizer == nil || publicPaths[c.FullPath()] || c.FullPath() == "" {
+			c.Next()
+			return
+		}
+		p := principal.FromContext(c.Request.Context())
+		if p == nil || p.UserID == 0 {
+			ErrorWithCode(c, CodeInvalidToken)
+			return
+		}
+		err := authorizer.Authorize(c.Request.Context(), rbac.Request{
+			UserID:   p.UserID,
+			Audience: rbac.NormalizeAudience(p.Audience()),
+			Method:   c.Request.Method,
+			Path:     c.FullPath(),
+		})
+		switch {
+		case err == nil:
+			c.Next()
+		case errors.Is(err, rbac.ErrUnauthenticated):
+			ErrorWithCode(c, CodeInvalidToken)
+		case errors.Is(err, rbac.ErrUnavailable):
+			ErrorWithCode(c, CodeServiceUnavailable)
+		default:
+			logger.WithFields(logrus.Fields{
+				"user_id":  p.UserID,
+				"audience": p.Audience(),
+				"method":   c.Request.Method,
+				"path":     c.FullPath(),
+			}).Info("permission denied")
+			ErrorWithCode(c, CodeForbidden)
+		}
 	}
 }

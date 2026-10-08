@@ -1,0 +1,31 @@
+meta {
+  name: User GET / without token (expect HTTP 401 or biz fail)
+  type: http
+  seq: 3
+}
+get {
+  url: {{user_base}}
+  body: none
+  auth: none
+}
+headers {
+  X-Request-ID: {{X-Request-ID}}
+}
+tests {
+  function __raw() {
+    const value = res.getBody();
+    return typeof value === "string" ? value : JSON.stringify(value);
+  }
+
+  function __json() {
+    const value = res.getBody();
+    return typeof value === "string" ? JSON.parse(value) : value;
+  }
+
+  test('rejected', () => {
+    const okHttp = res.status === 401;
+    let bizFail = false;
+    try { bizFail = __json().code !== 0; } catch (e) { bizFail = true; }
+    expect(okHttp || bizFail).to.eql(true);
+  });
+}

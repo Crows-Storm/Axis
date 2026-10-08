@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Ledger Service API
-  description: All web APIs for Ledger service - manages wallet transaction records and history
+  description: All Axis-web APIs for Ledger service - manages wallet transaction records and history
   version: 1.0.0
 
 servers:

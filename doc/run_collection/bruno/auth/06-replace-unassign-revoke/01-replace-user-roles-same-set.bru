@@ -1,0 +1,36 @@
+meta {
+  name: Replace user roles (same set)
+  type: http
+  seq: 1
+}
+put {
+  url: {{auth_base}}/rbac/users/roles
+  body: json
+  auth: inherit
+}
+headers {
+  X-Request-ID: {{X-Request-ID}}
+}
+body:json {
+  {
+    "user_id": {{user_id}},
+    "role_ids": [
+      {{role_id}}
+    ]
+  }
+}
+tests {
+  function __raw() {
+    const value = res.getBody();
+    return typeof value === "string" ? value : JSON.stringify(value);
+  }
+
+  function __json() {
+    const value = res.getBody();
+    return typeof value === "string" ? JSON.parse(value) : value;
+  }
+
+  const json = __json();
+  test('HTTP 200', () => expect(res.status).to.eql(200));
+  test('business code 0', () => expect(json.code).to.eql(0));
+}

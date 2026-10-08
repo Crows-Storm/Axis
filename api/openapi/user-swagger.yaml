@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: User Service API
-  description: All web APIs for User service
+  description: All Axis-web APIs for User service
   version: 1.0.0
 
 servers:
@@ -160,6 +160,56 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/UserInfo'
+
+    PageInfo:
+      type: object
+      properties:
+        start_cursor:
+          type: string
+        end_cursor:
+          type: string
+        has_previous_page:
+          type: boolean
+        has_next_page:
+          type: boolean
+      required:
+        - has_previous_page
+        - has_next_page
+
+    UserEdge:
+      type: object
+      properties:
+        cursor:
+          type: string
+        node:
+          $ref: '#/components/schemas/UserInfo'
+      required:
+        - cursor
+        - node
+
+    UserConnection:
+      type: object
+      properties:
+        total_count:
+          type: integer
+          format: int64
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserEdge'
+        page_info:
+          $ref: '#/components/schemas/PageInfo'
+      required:
+        - edges
+        - page_info
+
+    UserPageResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/UserConnection'
 
     UpdateUserInfoResponse:
       allOf:
@@ -398,6 +448,73 @@ paths:
               example:
                 code: 500
                 message: "Internal server error"
+
+  /page:
+    get:
+      summary: Page users
+      description: >
+        Cursor page of users that are not soft-deleted. Default size 20, newest id first.
+        first/after page forward; last/before page backward.
+      operationId: pageUsers
+      tags:
+        - User
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: first
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: after
+          in: query
+          schema:
+            type: string
+        - name: last
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: before
+          in: query
+          schema:
+            type: string
+        - name: login_id
+          in: query
+          schema:
+            type: string
+        - name: email
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: integer
+            enum: [0, 1]
+            description: Activated=0, Disabled=1
+      responses:
+        '200':
+          description: User page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPageResponse'
+        '400':
+          description: Invalid pagination
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # ===========================================================================
   # /{id} - User resource by ID
@@ -799,3 +916,40 @@ paths:
               example:
                 code: 500
                 message: "Internal server error"
+
+  /{id}/enable:
+    put:
+      summary: Enable user by id
+      description: Activate a disabled user.
+      operationId: enable
+      tags:
+        - User
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint64
+            minimum: 1
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateStatusResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

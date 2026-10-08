@@ -2,27 +2,52 @@ syntax = "proto3";
 
 option go_package = "github.com/Crows-Storm/Axis/common/genproto/auditpb";
 
-// AuditService is the read API. Writes arrive on the audit topic.
 service AuditService {
-  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
-  rpc GetAuditEvent(GetAuditEventRequest) returns (AuditEvent);
+  rpc PageRootEvents(PageRootEventsRequest) returns (AuditEventConnection);
+  rpc GetEventGraph(GetEventGraphRequest) returns (AuditEventGraph);
 }
 
-message ListAuditEventsRequest {
-  // from and to are RFC3339 timestamps. to is exclusive.
-  string from = 1;
-  string to = 2;
-  string service = 3;
-  string event_name = 4;
-  int32 limit = 5;
+message PageRootEventsRequest {
+  optional int32 first = 1;
+  optional string after = 2;
+  optional int32 last = 3;
+  optional string before = 4;
+  string service = 5;
+  string event_name = 6;
+  string from = 7;
+  string to = 8;
 }
 
-message ListAuditEventsResponse {
-  repeated AuditEvent events = 1;
+message AuditEventConnection {
+  int64 total_count = 1;
+  repeated AuditEventEdge edges = 2;
+  PageInfo page_info = 3;
 }
 
-message GetAuditEventRequest {
+message AuditEventEdge {
+  string cursor = 1;
+  AuditEvent node = 2;
+}
+
+message PageInfo {
+  string start_cursor = 1;
+  string end_cursor = 2;
+  bool has_previous_page = 3;
+  bool has_next_page = 4;
+}
+
+message GetEventGraphRequest {
   string event_id = 1;
+}
+
+message AuditEventGraph {
+  string event_id = 1;
+  repeated AuditEventNode roots = 2;
+}
+
+message AuditEventNode {
+  AuditEvent event = 1;
+  repeated AuditEventNode children = 2;
 }
 
 message AuditEvent {

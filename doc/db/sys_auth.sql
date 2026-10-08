@@ -1,18 +1,4 @@
--- =====================================================
--- 1. 用户表
--- =====================================================
-CREATE TABLE `sys_user` (
-                            `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '用户ID',
-                            `username`    VARCHAR(64)     NOT NULL COMMENT '用户名',
-                            `password`    VARCHAR(128)    NOT NULL COMMENT '密码哈希(如 bcrypt)',
-                            `nickname`    VARCHAR(64)     DEFAULT NULL COMMENT '昵称',
-                            `email`       VARCHAR(128)    DEFAULT NULL COMMENT '邮箱',
-                            `status`      TINYINT         NOT NULL DEFAULT 1 COMMENT '1正常 0禁用',
-                            `created_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                            `updated_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                            PRIMARY KEY (`id`),
-                            UNIQUE KEY `uk_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+use axis_auth;
 
 -- =====================================================
 -- 2. 角色表
@@ -99,41 +85,35 @@ CREATE TABLE `sys_action` (
 -- PermAll = 1023
 -- =====================================================
 INSERT INTO `sys_action` (`id`, `code`, `name`, `bit`, `sort`) VALUES
-(1,  'READ',    '查看', 0, 1),
-(2,  'CREATE',  '新增', 1, 2),
-(3,  'UPDATE',  '修改', 2, 3),
-(4,  'DELETE',  '删除', 3, 4),
-(5,  'ENABLE',  '激活', 4, 5),
-(6,  'CLOSE',   '关闭', 5, 6),
-(7,  'DISABLE', '禁用', 6, 7),
-(8,  'EXPORT',  '导出', 7, 8),
-(9,  'AUDIT',   '审核', 8, 9),
-(10, 'PUBLISH', '发布', 9, 10);
+(1,  'READ',    'View',     0, 1),
+(2,  'CREATE',  'Add',      1, 2),
+(3,  'UPDATE',  'Edit',     2, 3),
+(4,  'DELETE',  'Delete',   3, 4),
+(5,  'ENABLE',  'Activate', 4, 5),
+(6,  'CLOSE',   'Close',    5, 6),
+(7,  'DISABLE', 'Disable',  6, 7),
+(8,  'EXPORT',  'Export',   7, 8),
+(9,  'AUDIT',   'Audit',    8, 9),
+(10, 'PUBLISH', 'Publish',  9, 10);
 
 INSERT INTO `sys_menu` (`id`, `parent_id`, `code`, `name`, `path`, `icon`, `sort`, `status`) VALUES
-(1, 0, 'user',     '用户管理', '/user',     'user',     1, 1),
-(2, 0, 'system',   '系统设置', '/system',   'setting',  2, 1),
-(3, 0, 'product',  '商品管理', '/product',  'goods',    3, 1),
-(4, 0, 'activity', '活动管理', '/activity', 'activity', 4, 1);
+(1, 0, 'user',   'User Management',   '/users',  'user',   1, 1),
+(2, 0, 'role',   'Role Management',   '/roles',  'role',   2, 1),
+(3, 0, 'menu',   'Menu Management',   '/menus',  'menu',   3, 1),
+(4, 0, 'audit',  'Audit Compliance',  '/audit',  'audit',  4, 1),
+(5, 0, 'account', 'Account Management', '/accounts','account', 5, 1);
 
 INSERT INTO `sys_role` (`id`, `code`, `name`, `description`, `status`) VALUES
-(1, 'admin',  '超级管理员', '全部菜单全部操作', 1),
-(2, 'editor', '内容编辑',   '商品读写+上下架，用户只读', 1),
-(3, 'guest',  '访客',       '只读', 1);
+(1, 'super_admin', 'Super Administrator', 'Full access to every menu and action', 1);
 
--- admin: 1023 = 前 10 位全开
--- editor product: 1|2|4|16|32 = 55
+-- 1023 = READ|CREATE|UPDATE|DELETE|ENABLE|CLOSE|DISABLE|EXPORT|AUDIT|PUBLISH
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `mask`) VALUES
 (1, 1, 1023),
 (1, 2, 1023),
 (1, 3, 1023),
 (1, 4, 1023),
-(2, 1, 1),
-(2, 3, 55),
-(3, 1, 1),
-(3, 3, 1);
+(1, 5, 1023);
 
--- user_id 对应 user 服务的用户主键
+-- user_id is the user service primary key
 INSERT INTO `sys_user_role` (`user_id`, `role_id`) VALUES
-(1, 1),
-(2, 2);
+(1, 1);

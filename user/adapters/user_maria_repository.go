@@ -9,6 +9,8 @@ import (
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	commuser "github.com/Crows-Storm/Axis/common/domain/user"
+	"github.com/Crows-Storm/Axis/common/pagination"
+	"github.com/Crows-Storm/Axis/common/pagination/gormpage"
 	"github.com/Crows-Storm/Axis/common/server/store"
 	domain "github.com/Crows-Storm/Axis/user/domain/user"
 	"github.com/sirupsen/logrus"
@@ -23,7 +25,7 @@ type UserModel struct {
 	Password   string    `gorm:"column:password;type:varchar(255);not null"`
 	Type       string    `gorm:"column:type;type:varchar(255);not null"`
 	Email      string    `gorm:"column:email;type:varchar(100);not null"`
-	Status     int8      `gorm:"column:status;type:tinyint;default:1"`
+	Status     int8      `gorm:"column:status;type:tinyint;default:0"`
 	Deleted    int8      `gorm:"column:deleted;type:tinyint;default:0"`
 	CreateTime time.Time `gorm:"column:create_time;type:datetime;default:CURRENT_TIMESTAMP"`
 	UpdateTime time.Time `gorm:"column:update_time;type:datetime;default:CURRENT_TIMESTAMP;autoUpdateTime"`
@@ -308,18 +310,27 @@ func (u *UserMariaRepository) GetPasswordByLoginID(ctx context.Context, loginID 
 	return user.Password
 }
 
-//func (u *UserMariaRepository) Page(ctx contextx.Context, args pagination.Args) (*pagination.Connection[*domain.User], error) {
-//	connection, err := pagination.FetchConnection[UserModel](u.store.DB(), u.store.DB().WithContext(ctx).Model(&UserModel{}), pagination.DefaultConfig(), args)
-//	if err != nil {
-//		return nil, err
-//	}
-//	domainConnection := pagination.Connection[*domain.User]{
-//		TotalCount: connection.TotalCount,
-//		Edges:      toDomainEdges(),
-//		PageInfo:   connection.PageInfo,
-//	}
-//
-//}
+func (u *UserMariaRepository) Page(ctx context.Context, filter domain.PageFilter, args pagination.Args) (*pagination.Connection[*domain.User], error) {
+	u.lock.RLock()
+	defer u.lock.RUnlock()
+
+	model := u.store.DB().WithContext(ctx).Model(&UserModel{}).Scopes(domain.NotDeleted)
+	if prefix := safePrefix(filter.LoginID); prefix != "" {
+		model = model.Where("login_id LIKE ?", prefix+"%")
+	}
+	if prefix := safePrefix(filter.Email); prefix != "" {
+		model = model.Where("email LIKE ?", prefix+"%")
+	}
+	if filter.Status != nil {
+		model = model.Where("status = ?", *filter.Status)
+	}
+
+	conn, err := gormpage.FetchConnection[UserModel](u.store.DB(), model, userPageConfig(), &args)
+	if err != nil {
+		return nil, fmt.Errorf("page users: %w", err)
+	}
+	return toUserConnection(conn), nil
+}
 
 func (u *UserMariaRepository) ExistsWithTransaction(ctx context.Context, id uint64, LoginID string, email string) (bool, error) {
 	var count int64

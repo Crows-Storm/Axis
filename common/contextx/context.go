@@ -26,6 +26,16 @@ type Scope struct {
 	parentSpanID  string
 
 	timestamp time.Time
+	locale    string
+	timeZone  *time.Location // TODO: time zone
+
+	exchangeCredentials *Credentials
+}
+
+type Credentials struct {
+	APIKey     string
+	SecretKey  string
+	Passphrase string
 }
 
 type Builder struct {
@@ -92,8 +102,9 @@ func (b *Builder) HasRequestID() bool {
 
 func (b *Builder) Build(ctx context.Context) context.Context {
 	// CorrelationID stays with one business operation. The edge generates it
-	// when no upstream hop supplied one. CausationID names this hop only and
-	// is never copied from the inbound request.
+	// when no upstream hop supplied one. CausationID on Scope is hop-local
+	// tracing only; domain causation (parent event_id) is not stored here
+	// and is never copied from the inbound request.
 	if b.scope.correlationID == "" {
 		b.scope.correlationID = util.UUIDV4().String()
 	}
@@ -160,6 +171,18 @@ func (r *Reader) UserID() uint64 {
 
 func (r *Reader) IsAuthenticated() bool {
 	return r.Principal() != nil && r.UserID() > 0
+}
+
+// TODO: should store to grpc context, cannot call from gin, its internal service
+type credentialsKey struct{}
+
+func WithCredentials(ctx context.Context, cred *Credentials) context.Context {
+	return context.WithValue(ctx, credentialsKey{}, cred)
+}
+
+func CredentialsFromContext(ctx context.Context) (*Credentials, bool) {
+	c, ok := ctx.Value(credentialsKey{}).(*Credentials)
+	return c, ok
 }
 
 func (r *Reader) ClientIP() string {

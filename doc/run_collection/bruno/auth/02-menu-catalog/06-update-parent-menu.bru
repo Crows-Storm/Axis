@@ -1,0 +1,37 @@
+meta {
+  name: Update parent menu
+  type: http
+  seq: 6
+}
+patch {
+  url: {{auth_base}}/rbac/menus/{{menu_id}}
+  body: json
+  auth: inherit
+}
+headers {
+  X-Request-ID: {{X-Request-ID}}
+}
+body:json {
+  {
+    "parent_id": 0,
+    "name": "Postman \u5546\u54c1(\u6539)",
+    "path": "/pm/product",
+    "icon": "box",
+    "sort": 11
+  }
+}
+tests {
+  function __raw() {
+    const value = res.getBody();
+    return typeof value === "string" ? value : JSON.stringify(value);
+  }
+
+  function __json() {
+    const value = res.getBody();
+    return typeof value === "string" ? JSON.parse(value) : value;
+  }
+
+  const json = __json();
+  test('HTTP 200', () => expect(res.status).to.eql(200));
+  test('business code 0', () => expect(json.code).to.eql(0));
+}

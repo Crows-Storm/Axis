@@ -1,44 +1,45 @@
 package pagination
 
-import "errors"
+func clampLimit(n int) int {
+	if n > MaxLimit {
+		return MaxLimit
+	}
+	return n
+}
 
-var (
-	ErrInvalidArgs       = errors.New("invalid pagination arguments")
-	ErrFirstLastConflict = errors.New("cannot use both 'first' and 'last'")
-)
-
-// Resolve resolves external Args into internal Resolved parameters.
-func (a *Args) Resolve() (*Resolved, error) {
+func (a Args) Resolve() (*Resolved, error) {
 	if a.First != nil && a.Last != nil {
 		return nil, ErrFirstLastConflict
 	}
+	if a.First != nil && a.Before != nil && *a.Before != "" {
+		return nil, ErrInvalidArgs
+	}
+	if a.Last != nil && a.After != nil && *a.After != "" {
+		return nil, ErrInvalidArgs
+	}
 
 	if a.First == nil && a.Last == nil {
-		// The default forward option retrieves the DefaultLimit line.
-		defaultLimit := DefaultLimit
-		a.First = &defaultLimit
+		limit := DefaultLimit
+		return &Resolved{Direction: Forward, Limit: limit, Cursor: a.After}, nil
 	}
 
 	if a.First != nil {
-		limit := *a.First
-		if limit > MaxLimit {
-			limit = MaxLimit
+		if *a.First < 1 {
+			return nil, ErrInvalidArgs
 		}
 		return &Resolved{
 			Direction: Forward,
-			Limit:     limit,
+			Limit:     clampLimit(*a.First),
 			Cursor:    a.After,
 		}, nil
 	}
 
-	// Last + Before
-	limit := *a.Last
-	if limit > MaxLimit {
-		limit = MaxLimit
+	if *a.Last < 1 {
+		return nil, ErrInvalidArgs
 	}
 	return &Resolved{
 		Direction: Backward,
-		Limit:     limit,
+		Limit:     clampLimit(*a.Last),
 		Cursor:    a.Before,
 	}, nil
 }

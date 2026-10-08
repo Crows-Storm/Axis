@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Crows-Storm/Axis/common/config/logger"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -34,6 +35,14 @@ func RunHTTPServerWithLifecycle(ctx context.Context, addr string, wrapper func(r
 	// gRPC metadata loses the request id.
 	apiRouter.ContextWithFallback = true
 	apiRouter.Use(gin.Recovery())
+	apiRouter.Use(cors.New(cors.Config{
+		AllowAllOrigins:  true,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-Id"},
+		ExposeHeaders:    []string{"Content-Length", "X-Request-Id", "X-Trace-Id"},
+		AllowCredentials: false,
+		MaxAge:           12 * time.Hour,
+	}))
 	apiRouter.Use(RequestContextMiddleware(cfg.instanceID))
 
 	wrapper(apiRouter)

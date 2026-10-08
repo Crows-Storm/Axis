@@ -23,7 +23,8 @@ const (
 	MetadataUserAgent     = "x-user-agent"
 )
 
-// MQPropagationKeys is the allow-list projected onto Kafka headers / Envelope.Metadata.
+// MQPropagationKeys is the allow-list projected from request context onto Kafka headers.
+// Domain causation (parent event_id) is not in this list from context; it is set on Envelope.Metadata.
 // Authorization, instance-id, and principal/user-id are never included.
 var MQPropagationKeys = []string{
 	MetadataRequestID,

@@ -43,6 +43,7 @@ type Config struct {
 	ReadRedis                ReadRedisConfig
 	WriteRedis               WriteRedisConfig
 	Mongo                    MongoConfig
+	Kafka                    KafkaConfig
 }
 
 // JWTConfig will from ENV Config
@@ -90,6 +91,18 @@ type MongoConfig struct {
 	Database string
 }
 
+// KafkaConfig is optional. An empty broker list disables the client.
+type KafkaConfig struct {
+	Brokers  []string
+	ClientID string
+	GroupID  string
+}
+
+// Enabled reports whether a broker list was configured.
+func (k KafkaConfig) Enabled() bool {
+	return len(k.Brokers) > 0
+}
+
 func MustInit() {
 	if err := initConfig(); err != nil {
 		panic(fmt.Sprintf("[CONFIG MustInit] Init config ERROR: %v\n", err))
@@ -120,6 +133,7 @@ func initConfig() error {
 		ReadRedis:                getReadRedis(),
 		WriteRedis:               getWriteRedis(),
 		Mongo:                    getMongoConfig(),
+		Kafka:                    getKafkaConfig(),
 	}
 	global = cfg
 	return nil
@@ -231,6 +245,32 @@ func getMongoConfig() MongoConfig {
 		URI:      os.Getenv("MONGO_URI"),
 		Database: os.Getenv("MONGO_DATABASE"),
 	}
+}
+
+func getKafkaConfig() KafkaConfig {
+	return KafkaConfig{
+		Brokers:  splitList(os.Getenv("KAFKA_BROKERS")),
+		ClientID: os.Getenv("KAFKA_CLIENT_ID"),
+		GroupID:  os.Getenv("KAFKA_GROUP_ID"),
+	}
+}
+
+func splitList(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func parseRedisAddresses(addressStr string) []string {

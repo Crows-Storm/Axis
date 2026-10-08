@@ -1,0 +1,2269 @@
+{
+  "info": {
+    "name": "Axis Auth Flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "login_id",
+      "value": ""
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "role_code",
+      "value": ""
+    },
+    {
+      "key": "menu_code",
+      "value": ""
+    },
+    {
+      "key": "child_menu_code",
+      "value": ""
+    },
+    {
+      "key": "Token",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "menu_id",
+      "value": ""
+    },
+    {
+      "key": "child_menu_id",
+      "value": ""
+    },
+    {
+      "key": "role_id",
+      "value": ""
+    },
+    {
+      "key": "X-Request-ID",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Setup",
+      "item": [
+        {
+          "name": "Generate unique fixtures + ping",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = Date.now();",
+                  "pm.collectionVariables.set('login_id', 'pm_auth_' + s);",
+                  "pm.collectionVariables.set('email', 'pm_auth_' + s + '@example.test');",
+                  "pm.collectionVariables.set('password', 'TestPass123!');",
+                  "pm.collectionVariables.set('role_code', 'pm_role_' + s);",
+                  "pm.collectionVariables.set('menu_code', 'pm_menu_' + s);",
+                  "pm.collectionVariables.set('child_menu_code', 'pm_menu_child_' + s);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/ping",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 Register & Login",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "if (bodyData.password) {",
+                  "  bodyData.password = sha256Hex(bodyData.password);",
+                  "}",
+                  "",
+                  "if (Array.isArray(bodyData.items)) {",
+                  "  bodyData.items.forEach((item) => {",
+                  "    if (item && item.password) {",
+                  "      item.password = sha256Hex(item.password);",
+                  "    }",
+                  "  });",
+                  "}",
+                  "",
+                  "pm.request.body.raw = JSON.stringify(bodyData);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_id\": \"{{login_id}}\",\n  \"username\": \"{{login_id}}\",\n  \"password\": \"{{password}}\",\n  \"email\": \"{{email}}\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Register duplicate (expect fail)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "if (bodyData.password) {",
+                  "  bodyData.password = sha256Hex(bodyData.password);",
+                  "}",
+                  "",
+                  "if (Array.isArray(bodyData.items)) {",
+                  "  bodyData.items.forEach((item) => {",
+                  "    if (item && item.password) {",
+                  "      item.password = sha256Hex(item.password);",
+                  "    }",
+                  "  });",
+                  "}",
+                  "",
+                  "pm.request.body.raw = JSON.stringify(bodyData);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_id\": \"{{login_id}}\",\n  \"username\": \"{{login_id}}\",\n  \"password\": \"{{password}}\",\n  \"email\": \"{{email}}\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Register missing fields (expect fail)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "if (bodyData.password) {",
+                  "  bodyData.password = sha256Hex(bodyData.password);",
+                  "}",
+                  "",
+                  "if (Array.isArray(bodyData.items)) {",
+                  "  bodyData.items.forEach((item) => {",
+                  "    if (item && item.password) {",
+                  "      item.password = sha256Hex(item.password);",
+                  "    }",
+                  "  });",
+                  "}",
+                  "",
+                  "pm.request.body.raw = JSON.stringify(bodyData);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_id\": \"\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login wrong password (expect fail)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "const requestId = pm.collectionVariables.get(\"X-Request-ID\");",
+                  "if (!requestId) {",
+                  "  throw new Error(\"X-Request-ID not found\");",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "if (bodyData.password) {",
+                  "  const h1 = sha256Hex(bodyData.password);",
+                  "  const timestampSec = Math.floor(Date.now() / 1000);",
+                  "  bodyData.password = sha256Hex(`${h1}:${timestampSec}:${requestId}`);",
+                  "  pm.request.body.raw = JSON.stringify(bodyData);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_type\": \"password\",\n  \"login_id\": \"{{login_id}}\",\n  \"password\": \"WrongPass!\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login unknown type (expect fail)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "const requestId = pm.collectionVariables.get(\"X-Request-ID\");",
+                  "if (!requestId) {",
+                  "  throw new Error(\"X-Request-ID not found\");",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "if (bodyData.password) {",
+                  "  const h1 = sha256Hex(bodyData.password);",
+                  "  const timestampSec = Math.floor(Date.now() / 1000);",
+                  "  bodyData.password = sha256Hex(`${h1}:${timestampSec}:${requestId}`);",
+                  "  pm.request.body.raw = JSON.stringify(bodyData);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_type\": \"not_a_type\",\n  \"login_id\": \"{{login_id}}\",\n  \"password\": \"{{password}}\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login password",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "const requestId = pm.collectionVariables.get(\"X-Request-ID\");",
+                  "if (!requestId) {",
+                  "  throw new Error(\"X-Request-ID not found\");",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "if (bodyData.password) {",
+                  "  const h1 = sha256Hex(bodyData.password);",
+                  "  const timestampSec = Math.floor(Date.now() / 1000);",
+                  "  bodyData.password = sha256Hex(`${h1}:${timestampSec}:${requestId}`);",
+                  "  pm.request.body.raw = JSON.stringify(bodyData);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Parse response body",
+                  "const body = pm.response.json();",
+                  "const tokenObj = (body.data && (body.data.token || body.data.Token)) || {};",
+                  "const accessToken = tokenObj.access_token;",
+                  "",
+                  "if (body.code !== 0 || !accessToken) {",
+                  "    throw new Error(`Login failed: ${body.message || 'No access_token in response'}`);",
+                  "}",
+                  "",
+                  "console.log('✅ Login successful:', body.message);",
+                  "",
+                  "// Save to environment (or collection variables)",
+                  "pm.collectionVariables.set('Token', 'Bearer ' + accessToken);",
+                  "if (body.data.user_id !== undefined && body.data.user_id !== null) {",
+                  "    const userId = pm.response.text().match(/\"user_id\"\\s*:\\s*(\\d+)/);",
+                  "    pm.collectionVariables.set('user_id', userId[1]);",
+                  "}",
+                  "",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(body.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_type\": \"password\",\n  \"login_id\": \"{{login_id}}\",\n  \"password\": \"{{password}}\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "GET / without token (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "GET / current principal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Menu catalog",
+      "item": [
+        {
+          "name": "List actions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/actions"
+          }
+        },
+        {
+          "name": "Create parent menu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('menu id present', () => pm.expect(json.data.id).to.exist);",
+                  "const menuId = pm.response.text().match(/\"id\"\\s*:\\s*(\\d+)/);",
+                  "pm.collectionVariables.set('menu_id', menuId[1]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parent_id\": 0,\n  \"code\": \"{{menu_code}}\",\n  \"name\": \"Postman \\u5546\\u54c1\",\n  \"path\": \"/pm/product\",\n  \"icon\": \"box\",\n  \"sort\": 10\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create child menu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('child menu id present', () => pm.expect(json.data.id).to.exist);",
+                  "const childMenuId = pm.response.text().match(/\"id\"\\s*:\\s*(\\d+)/);",
+                  "pm.collectionVariables.set('child_menu_id', childMenuId[1]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parent_id\": {{menu_id}},\n  \"code\": \"{{child_menu_code}}\",\n  \"name\": \"Postman SKU\",\n  \"path\": \"/pm/product/sku\",\n  \"icon\": \"list\",\n  \"sort\": 1\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create menu invalid (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"\",\n  \"name\": \"\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List menu catalog",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/menus/catalog"
+          }
+        },
+        {
+          "name": "Update parent menu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/menus/{{menu_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parent_id\": 0,\n  \"name\": \"Postman \\u5546\\u54c1(\\u6539)\",\n  \"path\": \"/pm/product\",\n  \"icon\": \"box\",\n  \"sort\": 11\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Current user menus (may be empty before grant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/menus"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Role catalog",
+      "item": [
+        {
+          "name": "Create role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('role id present', () => pm.expect(json.data.id).to.exist);",
+                  "const roleId = pm.response.text().match(/\"id\"\\s*:\\s*(\\d+)/);",
+                  "pm.collectionVariables.set('role_id', roleId[1]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{role_code}}\",\n  \"name\": \"Postman \\u7f16\\u8f91\",\n  \"description\": \"flow test role\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create role invalid (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"\",\n  \"name\": \"\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List role catalog",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/catalog"
+          }
+        },
+        {
+          "name": "Get role detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/{{role_id}}"
+          }
+        },
+        {
+          "name": "Update role profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/{{role_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman \\u7f16\\u8f91(\\u6539)\",\n  \"description\": \"updated\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Current user roles (empty before assign)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Grants bitmask",
+      "item": [
+        {
+          "name": "Replace mask CRUD=15",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_id\": {{role_id}},\n  \"menu_id\": {{menu_id}},\n  \"mask\": 15,\n  \"grant\": false\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "OR grant ENABLE bit=16",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_id\": {{role_id}},\n  \"menu_id\": {{menu_id}},\n  \"mask\": 16,\n  \"grant\": true\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Grant child READ=1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_id\": {{role_id}},\n  \"menu_id\": {{child_menu_id}},\n  \"mask\": 1,\n  \"grant\": false\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get role with menus",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/{{role_id}}"
+          }
+        },
+        {
+          "name": "Get role menus",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/{{role_id}}/menus"
+          }
+        },
+        {
+          "name": "Grant invalid (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_id\": 0,\n  \"menu_id\": 0,\n  \"mask\": 1,\n  \"grant\": false\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Assign & check",
+      "item": [
+        {
+          "name": "Assign role to current user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/users/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{user_id}},\n  \"role_id\": {{role_id}}\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Assign duplicate (expect fail or idempotent)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200 envelope', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/users/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{user_id}},\n  \"role_id\": {{role_id}}\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get assigned roles (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/users/{{user_id}}/roles"
+          }
+        },
+        {
+          "name": "Get current user roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles"
+          }
+        },
+        {
+          "name": "Get current user menus",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/menus"
+          }
+        },
+        {
+          "name": "Check READ allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('permission allowed', () => pm.expect(json.data.allowed).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/check?menu={{menu_code}}&action=READ"
+          }
+        },
+        {
+          "name": "Check UPDATE allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('permission allowed', () => pm.expect(json.data.allowed).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/check?menu={{menu_code}}&action=UPDATE"
+          }
+        },
+        {
+          "name": "Check ENABLE allowed after OR grant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('permission allowed', () => pm.expect(json.data.allowed).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/check?menu={{menu_code}}&action=ENABLE"
+          }
+        },
+        {
+          "name": "Check PUBLISH denied",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('permission denied', () => pm.expect(json.data.allowed).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/check?menu={{menu_code}}&action=PUBLISH"
+          }
+        },
+        {
+          "name": "Check unknown action (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/check?menu={{menu_code}}&action=NOPE"
+          }
+        },
+        {
+          "name": "Check missing query (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/check"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Replace / unassign / revoke",
+      "item": [
+        {
+          "name": "Replace user roles (same set)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/users/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{user_id}},\n  \"role_ids\": [\n    {{role_id}}\n  ]\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Unassign role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/users/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{user_id}},\n  \"role_id\": {{role_id}}\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Check READ denied after unassign",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('permission denied', () => pm.expect(json.data.allowed).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/check?menu={{menu_code}}&action=READ"
+          }
+        },
+        {
+          "name": "Re-assign role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/users/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{user_id}},\n  \"role_id\": {{role_id}}\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Revoke parent menu grant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_id\": {{role_id}},\n  \"menu_id\": {{menu_id}}\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Check READ denied after revoke",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('permission denied', () => pm.expect(json.data.allowed).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/check?menu={{menu_code}}&action=READ"
+          }
+        },
+        {
+          "name": "Restore parent CRUD mask",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_id\": {{role_id}},\n  \"menu_id\": {{menu_id}},\n  \"mask\": 15,\n  \"grant\": false\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Status",
+      "item": [
+        {
+          "name": "Disable role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/{{role_id}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 0\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Check after role disabled",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));",
+                  "",
+                  "pm.test('permission denied', () => pm.expect(json.data.allowed).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/check?menu={{menu_code}}&action=READ"
+          }
+        },
+        {
+          "name": "Enable role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/{{role_id}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 1\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Hide menu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/menus/{{menu_id}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 0\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Show menu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/menus/{{menu_id}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 1\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Invalid role status (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/rbac/roles/{{role_id}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 9\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Logout",
+      "item": [
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/logout"
+          }
+        },
+        {
+          "name": "GET / after logout (expect fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect([200, 400, 401, 404]).to.include(code);",
+                  "  if (code === 200) {",
+                  "    pm.expect(pm.response.json().code).to.not.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}"
+          }
+        },
+        {
+          "name": "Login again after logout",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require('crypto-js');",
+                  "",
+                  "const requestId = pm.collectionVariables.get(\"X-Request-ID\");",
+                  "if (!requestId) {",
+                  "  throw new Error(\"X-Request-ID not found\");",
+                  "}",
+                  "",
+                  "const requestBody = pm.request.body.raw;",
+                  "let bodyData = JSON.parse(requestBody);",
+                  "",
+                  "function sha256Hex(message) {",
+                  "  return CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(String(message))).toString(CryptoJS.enc.Hex);",
+                  "}",
+                  "",
+                  "if (bodyData.password) {",
+                  "  const h1 = sha256Hex(bodyData.password);",
+                  "  const timestampSec = Math.floor(Date.now() / 1000);",
+                  "  bodyData.password = sha256Hex(`${h1}:${timestampSec}:${requestId}`);",
+                  "  pm.request.body.raw = JSON.stringify(bodyData);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Parse response body",
+                  "const body = pm.response.json();",
+                  "const tokenObj = (body.data && (body.data.token || body.data.Token)) || {};",
+                  "const accessToken = tokenObj.access_token;",
+                  "",
+                  "if (body.code !== 0 || !accessToken) {",
+                  "    throw new Error(`Login failed: ${body.message || 'No access_token in response'}`);",
+                  "}",
+                  "",
+                  "console.log('✅ Login successful:', body.message);",
+                  "",
+                  "// Save to environment (or collection variables)",
+                  "pm.collectionVariables.set('Token', 'Bearer ' + accessToken);",
+                  "if (body.data.user_id !== undefined && body.data.user_id !== null) {",
+                  "    const userId = pm.response.text().match(/\"user_id\"\\s*:\\s*(\\d+)/);",
+                  "    pm.collectionVariables.set('user_id', userId[1]);",
+                  "}",
+                  "",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(body.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_type\": \"password\",\n  \"login_id\": \"{{login_id}}\",\n  \"password\": \"{{password}}\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "GET / after re-login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('business code 0', () => pm.expect(json.code).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{X-Request-ID}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{auth_base}}"
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "function generateRequestId() {",
+          "  const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);",
+          "  return `${s4()}-${s4()}-${s4()}`;",
+          "}",
+          "",
+          "const requestId = generateRequestId();",
+          "pm.collectionVariables.set(\"X-Request-ID\", requestId);",
+          "pm.request.headers.upsert({ key: \"X-Request-ID\", value: requestId });",
+          "",
+          "const token = pm.collectionVariables.get(\"Token\");",
+          "const skipAuth = pm.request.auth && pm.request.auth.type === \"noauth\";",
+          "if (token && !skipAuth) {",
+          "  pm.request.headers.upsert({ key: \"Authorization\", value: token });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.collectionVariables.set(\"X-Request-ID\", \"\");"
+        ]
+      }
+    }
+  ]
+}

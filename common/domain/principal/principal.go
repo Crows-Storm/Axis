@@ -12,6 +12,8 @@ type Principal struct {
 	Extra       map[string]string `json:"extra"`
 }
 
+const ExtraAudience = "audience"
+
 // NewPrincipal The Permissions field is missing because it is hot-updated and stored in Redis.
 func NewPrincipal(userId uint64, username string, LoginID string, email string, status int8, role HoldRole, authChannel string, loginFrom string, extra map[string]string) *Principal {
 	return &Principal{
@@ -61,4 +63,15 @@ func (p *Principal) CanOperateRole(targetRoleLevel int) bool {
 		return true
 	}
 	return p.Role.RoleLevel <= targetRoleLevel
+}
+
+func (p *Principal) Audience() string {
+	if p == nil || p.Extra == nil {
+		return "app"
+	}
+	v := p.Extra[ExtraAudience]
+	if v == "" {
+		return "app"
+	}
+	return v
 }

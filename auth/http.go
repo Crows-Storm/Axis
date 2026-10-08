@@ -10,6 +10,7 @@ import (
 	"github.com/Crows-Storm/Axis/auth/protos"
 	"github.com/Crows-Storm/Axis/common/contextx"
 	"github.com/Crows-Storm/Axis/common/domain/principal"
+	"github.com/Crows-Storm/Axis/common/rbac"
 	"github.com/Crows-Storm/Axis/common/security"
 	"github.com/Crows-Storm/Axis/common/server"
 	"github.com/gin-gonic/gin"
@@ -52,6 +53,7 @@ func (H *HTTPServer) Login(c *gin.Context) {
 		Code     string `json:"code"`
 		Provider string `json:"provider"`
 		Ticket   string `json:"ticket"`
+		Audience string `json:"audience"`
 	}
 	// bind
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -87,8 +89,16 @@ func (H *HTTPServer) Login(c *gin.Context) {
 		return
 	}
 
+	if req.Audience != "" {
+		if _, ok := rbac.ParseAudience(req.Audience); !ok {
+			server.ErrorWithCode(c, server.CodeInvalidParams)
+			return
+		}
+	}
+
 	result, err := H.app.Commands.Login.Handle(c.Request.Context(), command.LoginCommand{
 		LoginType:  req.LoginType,
+		Audience:   string(rbac.NormalizeAudience(req.Audience)),
 		Credential: credential,
 	})
 	if err != nil {

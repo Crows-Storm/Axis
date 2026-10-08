@@ -1,0 +1,36 @@
+meta {
+  name: Grant child READ=1
+  type: http
+  seq: 3
+}
+put {
+  url: {{auth_base}}/rbac/roles/menus
+  body: json
+  auth: inherit
+}
+headers {
+  X-Request-ID: {{X-Request-ID}}
+}
+body:json {
+  {
+    "role_id": {{role_id}},
+    "menu_id": {{child_menu_id}},
+    "mask": 1,
+    "grant": false
+  }
+}
+tests {
+  function __raw() {
+    const value = res.getBody();
+    return typeof value === "string" ? value : JSON.stringify(value);
+  }
+
+  function __json() {
+    const value = res.getBody();
+    return typeof value === "string" ? JSON.parse(value) : value;
+  }
+
+  const json = __json();
+  test('HTTP 200', () => expect(res.status).to.eql(200));
+  test('business code 0', () => expect(json.code).to.eql(0));
+}

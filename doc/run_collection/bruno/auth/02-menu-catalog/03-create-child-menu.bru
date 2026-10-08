@@ -1,0 +1,42 @@
+meta {
+  name: Create child menu
+  type: http
+  seq: 3
+}
+post {
+  url: {{auth_base}}/rbac/menus
+  body: json
+  auth: inherit
+}
+headers {
+  X-Request-ID: {{X-Request-ID}}
+}
+body:json {
+  {
+    "parent_id": {{menu_id}},
+    "code": "{{child_menu_code}}",
+    "name": "Postman SKU",
+    "path": "/pm/product/sku",
+    "icon": "list",
+    "sort": 1
+  }
+}
+tests {
+  function __raw() {
+    const value = res.getBody();
+    return typeof value === "string" ? value : JSON.stringify(value);
+  }
+
+  function __json() {
+    const value = res.getBody();
+    return typeof value === "string" ? JSON.parse(value) : value;
+  }
+
+  const json = __json();
+  test('HTTP 200', () => expect(res.status).to.eql(200));
+  test('business code 0', () => expect(json.code).to.eql(0));
+
+  test('child menu id present', () => expect(json.data.id).to.exist);
+  const childMenuId = __raw().match(/"id"\s*:\s*(\d+)/);
+  bru.setVar('child_menu_id', childMenuId[1]);
+}

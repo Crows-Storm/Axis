@@ -16,6 +16,7 @@ import (
 
 type LoginCommand struct {
 	LoginType  security.LoginType
+	Audience   string
 	Credential security.Credential
 }
 
@@ -107,7 +108,9 @@ func (h loginCommandHandler) Handle(ctx context.Context, cmd LoginCommand) (Logi
 		Status:      int8(userInfo.Status),
 		Role:        holdRole,
 		AuthChannel: string(cmd.LoginType),
-		Extra:       nil,
+		Extra: map[string]string{
+			domain.ExtraAudience: audienceOrApp(cmd.Audience),
+		},
 	}
 	token, err := h.authenticators.IssueToken(ctx, principal)
 
@@ -115,4 +118,11 @@ func (h loginCommandHandler) Handle(ctx context.Context, cmd LoginCommand) (Logi
 		return LoginResult{}, fmt.Errorf("issue token failed: %w", err)
 	}
 	return LoginResult{UserID: identity.UserID, Username: principal.Username, IsNew: false, Token: token}, nil
+}
+
+func audienceOrApp(raw string) string {
+	if raw == "" {
+		return "app"
+	}
+	return raw
 }

@@ -1,0 +1,29 @@
+meta {
+  name: Axis Auth Flow
+}
+
+auth {
+  mode: bearer
+}
+
+script:pre-request {
+  req.disableParsingResponseJson();
+  
+  function generateRequestId() {
+    const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+    return `${s4()}-${s4()}-${s4()}`;
+  }
+  
+  const requestId = generateRequestId();
+  bru.setVar("X-Request-ID", requestId);
+  req.setHeader("X-Request-ID", requestId);
+  
+  const token = bru.getVar("Token");
+  if (token && req.getAuthMode() !== "none") {
+    req.setHeader("Authorization", token);
+  }
+}
+
+script:post-response {
+  bru.setVar("X-Request-ID", "");
+}

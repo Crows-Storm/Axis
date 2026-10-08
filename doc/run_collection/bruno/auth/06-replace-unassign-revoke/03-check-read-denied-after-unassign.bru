@@ -1,0 +1,30 @@
+meta {
+  name: Check READ denied after unassign
+  type: http
+  seq: 3
+}
+get {
+  url: {{auth_base}}/rbac/check?menu={{menu_code}}&action=READ
+  body: none
+  auth: inherit
+}
+headers {
+  X-Request-ID: {{X-Request-ID}}
+}
+tests {
+  function __raw() {
+    const value = res.getBody();
+    return typeof value === "string" ? value : JSON.stringify(value);
+  }
+
+  function __json() {
+    const value = res.getBody();
+    return typeof value === "string" ? JSON.parse(value) : value;
+  }
+
+  const json = __json();
+  test('HTTP 200', () => expect(res.status).to.eql(200));
+  test('business code 0', () => expect(json.code).to.eql(0));
+
+  test('permission denied', () => expect(json.data.allowed).to.eql(false));
+}

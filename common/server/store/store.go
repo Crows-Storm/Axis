@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/Crows-Storm/Axis/common/config"
 	"github.com/Crows-Storm/Axis/common/config/logger"
 	"gorm.io/gorm"
 )
@@ -12,6 +13,28 @@ type Store struct {
 	gdb    *gorm.DB  // GORM database connection
 	db     *sql.DB   // Legacy sql.DB for backward compatibility
 	driver *DBDriver // Database driver for abstraction (legacy)
+}
+
+// Open maps application config onto a store and connects.
+func Open(cfg config.DBConfig) (*Store, error) {
+	return NewWithConfig(dbConfigFrom(cfg))
+}
+
+func dbConfigFrom(cfg config.DBConfig) DBConfig {
+	dbType := DBTypeSQLite
+	if cfg.DBType == string(DBTypeMaria) {
+		dbType = DBTypeMaria
+	}
+	return DBConfig{
+		Type:     dbType,
+		Path:     cfg.DBPath,
+		Host:     cfg.DBHost,
+		Port:     cfg.DBPort,
+		User:     cfg.DBLoginID,
+		Password: cfg.DBPassword,
+		DBName:   cfg.DBSchema,
+		SSLMode:  cfg.DBSslMode,
+	}
 }
 
 func NewWithConfig(cfg DBConfig) (*Store, error) {

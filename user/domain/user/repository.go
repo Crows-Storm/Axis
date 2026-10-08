@@ -4,8 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Crows-Storm/Axis/common/pagination"
 	"gorm.io/gorm"
 )
+
+type PageFilter struct {
+	LoginID string
+	Email   string
+	Status  *int8
+}
 
 type Repository interface {
 	GetInfo(id uint64) (*User, error)
@@ -13,6 +20,7 @@ type Repository interface {
 	ExistsWithTransaction(ctx context.Context, id uint64, loginID string, email string) (bool, error)
 	GetStats(ctx context.Context) (map[string]interface{}, error)
 	GetPasswordByLoginID(ctx context.Context, loginID string) string
+	Page(ctx context.Context, filter PageFilter, args pagination.Args) (*pagination.Connection[*User], error)
 
 	Create(ctx context.Context, user *User) (*User, error)
 	CreateBatch(ctx context.Context, users []*User) error

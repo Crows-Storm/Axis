@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
+// NOTE: move to common model, common/client/{{serviceName}}/grpc.go
 type UserGRPC struct {
 	client userpb.UserServiceClient
 }

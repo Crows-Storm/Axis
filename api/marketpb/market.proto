@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+option go_package = "github.com/Crows-Storm/Axis/common/genproto/marketpb";
+
+service MarketService {
+  rpc Ping(PingRequest) returns (Status);
+}
+
+message PingRequest {}
+
+message Status {
+  string service = 1;
+  string role = 2;
+}

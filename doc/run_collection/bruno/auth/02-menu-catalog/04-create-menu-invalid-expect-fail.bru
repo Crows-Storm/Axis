@@ -1,0 +1,38 @@
+meta {
+  name: Create menu invalid (expect fail)
+  type: http
+  seq: 4
+}
+post {
+  url: {{auth_base}}/rbac/menus
+  body: json
+  auth: inherit
+}
+headers {
+  X-Request-ID: {{X-Request-ID}}
+}
+body:json {
+  {
+    "code": "",
+    "name": ""
+  }
+}
+tests {
+  function __raw() {
+    const value = res.getBody();
+    return typeof value === "string" ? value : JSON.stringify(value);
+  }
+
+  function __json() {
+    const value = res.getBody();
+    return typeof value === "string" ? JSON.parse(value) : value;
+  }
+
+  test('rejected', () => {
+    const code = res.status;
+    expect([200, 400, 401, 404]).to.include(code);
+    if (code === 200) {
+      expect(__json().code).to.not.eql(0);
+    }
+  });
+}

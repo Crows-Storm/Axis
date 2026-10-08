@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+option go_package = "github.com/Crows-Storm/Axis/common/genproto/accountpb";
+
+service AccountService {
+  rpc GetAccountsByUserID(GetAccountsByUserIDRequest) returns (GetAccountsByUserIDResponse);
+  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+}
+
+message GetAccountsByUserIDRequest {
+  uint64 user_id = 1;
+}
+
+message GetAccountsByUserIDResponse {
+  uint64 user_id = 1;
+  repeated Account accounts = 2;
+}
+
+message Account {
+  uint64 id = 1;
+  string type = 2;
+  repeated Balance wallets = 3;
+}
+
+message Balance {
+  uint64 wallet_id = 1;
+  string currency = 2;
+  string amount = 3;
+}
+
+message GetBalanceRequest {
+  uint64 user_id = 1;
+  string currency = 2;
+}
+
+message GetBalanceResponse {
+  string amount = 1;
+}

@@ -41,10 +41,18 @@ func (a *AggregateRoot) IncrementVersion() {
 // When constructing the user, Bind(u) to AggregateRoot.self
 func (a *AggregateRoot) RaiseEvent(self Applier, events ...event.Message) error {
 	for _, message := range events {
+		if message == nil {
+			return fmt.Errorf("aggregate root: nil event")
+		}
+		topic, err := event.Topic(message.Domain(), message.Name())
+		if err != nil {
+			return fmt.Errorf("aggregate root: %w", err)
+		}
 		if err := self.ApplyEvent(message); err != nil {
 			return fmt.Errorf("aggregateRoot.BaseRoot: failed to audit event, %w", err)
 		}
 		a.events = append(a.events, event.Envelope[event.Message]{
+			Topic:     topic,
 			Message:   message,
 			Timestamp: time.Now(),
 		})

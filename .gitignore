@@ -26,6 +26,8 @@ bin/
 dist/
 build/
 
+Axis-web/
+
 # IDE and editor files
 .vscode/
 .idea/

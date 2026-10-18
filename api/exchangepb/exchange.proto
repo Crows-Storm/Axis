@@ -2,11 +2,24 @@ syntax = "proto3";
 
 option go_package = "github.com/Crows-Storm/Axis/common/genproto/exchangepb";
 
+// ExchangeService is an internal gRPC API for other Axis services.
+// It proxies CEX capabilities (account, market, orders). Do not expose
+// these RPCs through the public HTTP gateway. Venue API secrets must be
+// sent in gRPC metadata (x-exchange-api-key, x-exchange-api-secret,
+// x-exchange-passphrase), never in these messages.
 service ExchangeService {
   rpc Ping(PingRequest) returns (Status);
 
-  // get user the account information, all account
-  rpc Account(AccountRequest) returns (AccountResponse);
+  rpc GetAccountInfo(GetAccountInfoRequest) returns (AccountInfo);
+  rpc GetBalance(GetBalanceRequest) returns (Balance);
+
+  rpc GetTicker(GetTickerRequest) returns (Ticker);
+  rpc GetCandles(GetCandlesRequest) returns (GetCandlesResponse);
+  rpc GetOrderBook(GetOrderBookRequest) returns (OrderBook);
+
+  rpc PlaceOrder(PlaceOrderRequest) returns (Order);
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+  rpc GetOrder(GetOrderRequest) returns (Order);
 }
 
 message PingRequest {}
@@ -16,10 +29,119 @@ message Status {
   string role = 2;
 }
 
-message AccountRequest {
-  uint64 userID = 1;
+message GetAccountInfoRequest {
+  string platform = 1;
 }
 
-message AccountResponse {
-  uint64 userID = 1;
+message AccountInfo {
+  string platform = 1;
+  string uid = 2;
+  string account_type = 3;
+  repeated string permissions = 4;
+  bool can_trade = 5;
+}
+
+message GetBalanceRequest {
+  string platform = 1;
+  string asset = 2;
+}
+
+message Balance {
+  string asset = 1;
+  string free = 2;
+  string locked = 3;
+}
+
+message GetTickerRequest {
+  string platform = 1;
+  string symbol = 2;
+}
+
+message Ticker {
+  string symbol = 1;
+  string last_price = 2;
+  string bid_price = 3;
+  string ask_price = 4;
+  int64 timestamp = 5;
+}
+
+message GetCandlesRequest {
+  string platform = 1;
+  string symbol = 2;
+  string interval = 3;
+  int32 limit = 4;
+}
+
+message GetCandlesResponse {
+  repeated Candle candles = 1;
+}
+
+message Candle {
+  int64 open_time = 1;
+  string open = 2;
+  string high = 3;
+  string low = 4;
+  string close = 5;
+  string volume = 6;
+  int64 close_time = 7;
+}
+
+message GetOrderBookRequest {
+  string platform = 1;
+  string symbol = 2;
+  int32 depth = 3;
+}
+
+message OrderBook {
+  string symbol = 1;
+  repeated OrderBookLevel bids = 2;
+  repeated OrderBookLevel asks = 3;
+}
+
+message OrderBookLevel {
+  string price = 1;
+  string quantity = 2;
+}
+
+message PlaceOrderRequest {
+  string platform = 1;
+  string symbol = 2;
+  string side = 3;
+  string type = 4;
+  string market = 5;
+  string quantity = 6;
+  string quote_quantity = 7;
+  string price = 8;
+  string time_in_force = 9;
+  string client_order_id = 10;
+  string stop_price = 11;
+}
+
+message CancelOrderRequest {
+  string platform = 1;
+  string symbol = 2;
+  string order_id = 3;
+  string client_order_id = 4;
+}
+
+message CancelOrderResponse {}
+
+message GetOrderRequest {
+  string platform = 1;
+  string symbol = 2;
+  string order_id = 3;
+}
+
+message Order {
+  string symbol = 1;
+  string order_id = 2;
+  string client_order_id = 3;
+  string status = 4;
+  string type = 5;
+  string side = 6;
+  string price = 7;
+  string orig_qty = 8;
+  string executed_qty = 9;
+  string time_in_force = 10;
+  int64 transact_time = 11;
 }

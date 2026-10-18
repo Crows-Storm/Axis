@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	AccountInfo()
+	//AccountInfo()
 }
 
 func AccountInfo() {

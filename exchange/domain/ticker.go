@@ -20,3 +20,17 @@ type OrderBookLevel struct {
 	Price    *string
 	Quantity *string
 }
+
+type MarketChannel string
+
+const (
+	ChannelTicker MarketChannel = "ticker"
+	ChannelCandle MarketChannel = "candle"
+	ChannelBook   MarketChannel = "orderbook"
+)
+
+type MarketUpdate struct {
+	Ticker    *Ticker
+	Candle    *Candle
+	OrderBook *OrderBook
+}

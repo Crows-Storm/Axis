@@ -394,3 +394,9 @@ func (u *UserMariaRepository) GetStats(ctx context.Context) (map[string]interfac
 		"deletedUsers": stats.DeletedUsers,
 	}, nil
 }
+
+// ========== User Profile
+func (u *UserMariaRepository) SaveProfile(ctx context.Context, user *domain.User) error {
+	//TODO implement me
+	panic("implement me")
+}

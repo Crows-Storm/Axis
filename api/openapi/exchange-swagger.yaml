@@ -2,8 +2,9 @@ openapi: 3.0.3
 info:
   title: Exchange Service API
   description: >
-    Exchange integration. Venue accounts, order routing, and fill ingest.
-    Market prices come from market; on-chain settlement and watchers live in chain.
+    Public HTTP surface is health only. Venue account, market, and order
+    capabilities are internal gRPC (api/exchangepb/exchange.proto) for other
+    Axis services. Do not put API secrets in HTTP or proto bodies.
   version: 0.1.0
 
 servers:

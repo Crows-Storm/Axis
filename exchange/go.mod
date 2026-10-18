@@ -10,6 +10,7 @@ require (
 	github.com/binance/binance-connector-go/clients/wallet v1.17.0
 	github.com/binance/binance-connector-go/common/v2 v2.9.0
 	github.com/gin-gonic/gin v1.12.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.82.1
 )
@@ -34,7 +35,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/hashicorp/consul/api v1.34.4 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

@@ -16,7 +16,7 @@ type HTTPServer struct {
 var _ protos.ServerInterface = (*HTTPServer)(nil)
 
 func (h HTTPServer) GetStatus(c *gin.Context) {
-	// Exchange integration: venue accounts, orders, and fills. Prices come from market; chain settlement from chain.
+	// HTTP is health only. Other services call venue APIs over internal gRPC.
 	server.Success(c, map[string]string{
 		"service": "exchange",
 		"role":    serviceRole,

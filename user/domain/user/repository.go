@@ -33,6 +33,9 @@ type Repository interface {
 
 	// Dangerous operation
 	SoftDelete(ctx context.Context, id uint64) error
+
+	// User Profile
+	SaveProfile(ctx context.Context, user *User) error
 }
 
 type NotFoundError struct {

@@ -1123,7 +1123,7 @@ require (
 ```bash
 # 1. 编译
 cd gateway
-go build -o gateway main.go
+go build -o gateway query_main_test.go
 
 # 2. 运行
 ./gateway

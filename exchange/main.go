@@ -32,7 +32,12 @@ func main() {
 		logger.WithError(err).Error("publish rbac routes failed")
 	}
 
-	application := service.NewApplication(proc.Context())
+	var appDependencies = service.ApplicationDependencies{
+		CacheClient: proc.Cache,
+		Issuer:      issuer,
+	}
+	application, cleanup := service.NewApplication(proc.Context(), appDependencies)
+	defer cleanup()
 
 	proc.Serve(func(router *gin.Engine) {
 		middlewares := []protos.MiddlewareFunc{

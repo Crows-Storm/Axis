@@ -6,6 +6,7 @@ import (
 	"github.com/Crows-Storm/Axis/common/discovery/grpcx"
 	"github.com/Crows-Storm/Axis/common/genproto/accountpb"
 	"github.com/Crows-Storm/Axis/common/genproto/authpb"
+	"github.com/Crows-Storm/Axis/common/genproto/exchangepb"
 	"github.com/Crows-Storm/Axis/common/genproto/userpb"
 )
 
@@ -35,4 +36,12 @@ func NewAccountGRPCClient(_ context.Context) (accountpb.AccountServiceClient, fu
 		return nil, nil, err
 	}
 	return accountpb.NewAccountServiceClient(conn), func() error { return nil }, nil
+}
+
+func NewExchangeGRPCClient(_ context.Context) (exchangepb.ExchangeServiceClient, func() error, error) {
+	conn, err := grpcx.DialService("exchange")
+	if err != nil {
+		return nil, nil, err
+	}
+	return exchangepb.NewExchangeServiceClient(conn), func() error { return nil }, nil
 }

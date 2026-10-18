@@ -21,6 +21,11 @@ const (
 	MetadataAuthorization = "authorization"
 	MetadataClientIP      = "x-client-ip"
 	MetadataUserAgent     = "x-user-agent"
+
+	// Venue API credentials for internal exchange gRPC. Never log or put on MQ.
+	MetadataExchangeAPIKey     = "x-exchange-api-key"
+	MetadataExchangeAPISecret  = "x-exchange-api-secret"
+	MetadataExchangePassphrase = "x-exchange-passphrase"
 )
 
 // MQPropagationKeys is the allow-list projected from request context onto Kafka headers.

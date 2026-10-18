@@ -187,3 +187,20 @@ func TestMQRoundTrip_UsesEventIDWhenRequestIDMissing(t *testing.T) {
 	fallback := BindMQ(context.Background(), map[string]string{}, "evt-fallback", "svc-consumer")
 	assert.Equal(t, "evt-fallback", FromContext(fallback).RequestID())
 }
+
+func TestInjectExchangeCredentialsMetadata(t *testing.T) {
+	ctx := WithCredentials(NewBuilder().WithRequestID("req").Build(context.Background()), &Credentials{
+		APIKey:     "k",
+		SecretKey:  "s",
+		Passphrase: "p",
+	})
+	out := InjectIntoGRPCMetadata(ctx)
+	md, ok := metadata.FromOutgoingContext(out)
+	require.True(t, ok)
+	assert.Equal(t, []string{"k"}, md.Get(MetadataExchangeAPIKey))
+	incoming := metadata.NewIncomingContext(context.Background(), md)
+	cred, ok := CredentialsFromIncomingMetadata(incoming)
+	require.True(t, ok)
+	assert.Equal(t, "k", cred.APIKey)
+	assert.Equal(t, "s", cred.SecretKey)
+}
